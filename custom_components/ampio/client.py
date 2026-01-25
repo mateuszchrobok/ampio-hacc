@@ -1,4 +1,5 @@
 """Ampio MQTT api implementation."""
+
 import asyncio
 from itertools import groupby
 import logging
@@ -74,9 +75,7 @@ SubscribePayloadType = Union[str, bytes]  # Only bytes if encoding is None
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_discovery(
-    hass: HomeAssistantType, conf: ConfigType, config_entry
-) -> bool:
+async def async_setup_discovery(hass: HomeAssistantType, conf: ConfigType, config_entry) -> bool:
     """Start Ampio Discovery."""
     success: bool = await discovery.async_start(hass, config_entry)
 
@@ -85,13 +84,9 @@ async def async_setup_discovery(
 
 @callback
 @bind_hass
-def async_publish(
-    hass: HomeAssistantType, topic: Any, payload, qos=None, retain=None
-) -> None:
+def async_publish(hass: HomeAssistantType, topic: Any, payload, qos=None, retain=None) -> None:
     """Publish message to an MQTT topic."""
-    hass.add_job(
-        hass.data[DATA_AMPIO][DATA_AMPIO_API].async_publish, topic, payload, qos, retain
-    )
+    hass.add_job(hass.data[DATA_AMPIO][DATA_AMPIO_API].async_publish, topic, payload, qos, retain)
 
 
 @bind_hass
@@ -123,7 +118,12 @@ async def async_subscribe(
 class AmpioAPI:
     """Ampio MQTT API."""
 
-    def __init__(self, hass: HomeAssistantType, config_entry, conf,) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistantType,
+        config_entry,
+        conf,
+    ) -> None:
         """Initialize Ampio Client."""
         import paho.mqtt.client as mqtt  # pylint: disable=import-outside-toplevel
 
@@ -192,9 +192,7 @@ class AmpioAPI:
         """Publish MQTT message."""
         async with self._paho_lock:
             _LOGGER.debug("Transmitting message on %s: %s", topic, payload)
-            await self.hass.async_add_executor_job(
-                self._mqttc.publish, topic, payload, qos, retain
-            )
+            await self.hass.async_add_executor_job(self._mqttc.publish, topic, payload, qos, retain)
 
     async def async_connect(self) -> str:
         """Connect to the host. Does not process messages yet."""
@@ -210,14 +208,10 @@ class AmpioAPI:
                 self.conf[CONF_KEEPALIVE],
             )
         except OSError as err:
-            _LOGGER.error(
-                "Failed to connect to Ampio MQTT Server due to exceptipn: %s", err
-            )
+            _LOGGER.error("Failed to connect to Ampio MQTT Server due to exceptipn: %s", err)
 
         if result is not None and result != 0:
-            _LOGGER.error(
-                "Failed to connect to Ampio MQTT Server: %s", mqtt.error_string(result)
-            )
+            _LOGGER.error("Failed to connect to Ampio MQTT Server: %s", mqtt.error_string(result))
 
         self._mqttc.loop_start()
 
@@ -275,9 +269,7 @@ class AmpioAPI:
         _LOGGER.debug("Unsubscribing from %s", topic)
         async with self._paho_lock:
             result: int = None
-            result, _ = await self.hass.async_add_executor_job(
-                self._mqttc.unsubscribe, topic
-            )
+            result, _ = await self.hass.async_add_executor_job(self._mqttc.unsubscribe, topic)
             _raise_on_error(result)
 
     async def _async_perform_subscription(self, topic: str, qos: int) -> None:
@@ -286,14 +278,10 @@ class AmpioAPI:
 
         async with self._paho_lock:
             result: int = None
-            result, _ = await self.hass.async_add_executor_job(
-                self._mqttc.subscribe, topic, qos
-            )
+            result, _ = await self.hass.async_add_executor_job(self._mqttc.subscribe, topic, qos)
             _raise_on_error(result)
 
-    def _mqtt_on_connect(
-        self, _mqttc, _userdata, _flags, reason_code, _properties
-    ) -> None:
+    def _mqtt_on_connect(self, _mqttc, _userdata, _flags, reason_code, _properties) -> None:
         """On connect callback.
         Resubscribe to all topics we were subscribed to and publish birth
         message.
@@ -388,9 +376,7 @@ def _raise_on_error(result_code: int) -> None:
     import paho.mqtt.client as mqtt
 
     if result_code != 0:
-        raise HomeAssistantError(
-            f"Error talking to Ampio MQTT: {mqtt.error_string(result_code)}"
-        )
+        raise HomeAssistantError(f"Error talking to Ampio MQTT: {mqtt.error_string(result_code)}")
 
 
 def _match_topic(subscription: str, topic: str) -> bool:

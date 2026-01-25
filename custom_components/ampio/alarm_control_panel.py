@@ -1,4 +1,5 @@
 """Ampio Alarm Control Panel."""
+
 import asyncio
 import functools
 import logging
@@ -229,9 +230,7 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
 
     async def async_will_remove_from_hass(self):
         """Unsubscribe when removed."""
-        self._sub_state = await subscription.async_unsubscribe_topics(
-            self.hass, self._sub_state
-        )
+        self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
     def supported_features(self) -> int:
@@ -265,9 +264,7 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
         async_publish(self.hass, self._config[CONF_RAW_TOPIC], cmd, 0, False)
 
 
-async def async_setup_entry(
-    hass: HomeAssistantType, config_entry: ConfigType, async_add_entities
-):
+async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][alarm.DOMAIN]
 

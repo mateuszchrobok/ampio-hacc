@@ -1,4 +1,5 @@
 """Helper to handle a set of topics to subscribe to."""
+
 import logging
 from typing import Any, Callable, Dict, Optional
 

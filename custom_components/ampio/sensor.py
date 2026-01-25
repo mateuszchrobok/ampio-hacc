@@ -1,4 +1,5 @@
 """Ampio Sensors."""
+
 import functools
 import logging
 from datetime import timedelta
@@ -71,12 +72,9 @@ class AmpioSensor(AmpioEntity, RestoreEntity, Entity):
             return
         self._state = last_state.state
 
-
     async def async_will_remove_from_hass(self):
         """Unsubscribe when removed."""
-        self._sub_state = await subscription.async_unsubscribe_topics(
-            self.hass, self._sub_state
-        )
+        self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
     def unit_of_measurement(self):
@@ -113,9 +111,7 @@ class AmpioSensor(AmpioEntity, RestoreEntity, Entity):
         return True
 
 
-async def async_setup_entry(
-    hass: HomeAssistantType, config_entry: ConfigType, async_add_entities
-):
+async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][sensor.DOMAIN]
 

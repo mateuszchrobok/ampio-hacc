@@ -1,4 +1,5 @@
 """Data validators."""
+
 from typing import Any, List, TypeVar, Union
 
 import voluptuous as vol

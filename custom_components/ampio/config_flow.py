@@ -1,4 +1,5 @@
 """Config flow to configure Ampio System."""
+
 from collections import OrderedDict
 from typing import Optional
 
@@ -47,9 +48,7 @@ class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             if can_connect:
-                return self.async_create_entry(
-                    title=user_input[CONF_BROKER], data=user_input
-                )
+                return self.async_create_entry(title=user_input[CONF_BROKER], data=user_input)
 
             errors["base"] = "cannot_connect"
 
@@ -59,9 +58,7 @@ class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         fields[vol.Optional(CONF_USERNAME)] = str
         fields[vol.Optional(CONF_PASSWORD)] = str
 
-        return self.async_show_form(
-            step_id="broker", data_schema=vol.Schema(fields), errors=errors
-        )
+        return self.async_show_form(step_id="broker", data_schema=vol.Schema(fields), errors=errors)
 
     async def async_step_zeroconf(self, discovery_info):
         """Prepare configuration for a discovered Ampio device."""

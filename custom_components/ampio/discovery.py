@@ -1,4 +1,5 @@
 """Module and entity discovery."""
+
 import asyncio
 import json
 import logging
@@ -101,7 +102,7 @@ async def async_start(hass: HomeAssistantType, config_entry=None) -> bool:
     }
 
     async def module_names_received(msg):
-        "Handle names update." ""
+        "Handle names update."
         matched = MAC_FROM_TOPIC_RE.match(msg.topic)
         if matched:
             mac = matched.group("mac").upper()

@@ -1,4 +1,5 @@
 """Ampio Entities."""
+
 import logging
 from typing import Any, Dict, Optional
 
@@ -134,9 +135,7 @@ class AmpioModuleDiscoveryUpdate(Entity):
             data = _event.data
             if data["action"] == "update":
                 device_id = data["device_id"]
-                device_registry = (
-                    await self.hass.helpers.device_registry.async_get_registry()
-                )
+                device_registry = await self.hass.helpers.device_registry.async_get_registry()
                 device_config = device_registry.async_get(device_id)
                 self._discovery_update(device_config)
 

@@ -1,4 +1,5 @@
 """Ampio Cover."""
+
 import functools
 import logging
 
@@ -125,7 +126,6 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
             self.hass, self._sub_state, topics
         )
 
-
     async def async_added_to_hass(self):
         """Entity added to the hass."""
         await super().async_added_to_hass()
@@ -137,12 +137,9 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
             if cover.ATTR_CURRENT_TILT_POSITION in last_state.attributes:
                 self._tilt_position = last_state.attributes[cover.ATTR_CURRENT_TILT_POSITION]
 
-
     async def async_will_remove_from_hass(self):
         """Unsubscribe when removed."""
-        self._sub_state = await subscription.async_unsubscribe_topics(
-            self.hass, self._sub_state
-        )
+        self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
     def current_cover_position(self):
@@ -202,9 +199,7 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
             position_bytes = position.to_bytes(1, byteorder="little")
             mask = 0xFF & (0x01 << (self._index - 1))
             mask_bytes = mask.to_bytes(1, byteorder="little")
-            raw = (
-                cmd + mask_bytes + position_bytes + b"\x66"
-            )  # tilt to previous position
+            raw = cmd + mask_bytes + position_bytes + b"\x66"  # tilt to previous position
             async_publish(self.hass, self._config[CONF_RAW_TOPIC], raw.hex(), 0, False)
 
     async def async_open_cover_tilt(self, **kwargs):
@@ -244,9 +239,7 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
         async_publish(self.hass, self._config[CONF_COMMAND_TOPIC], 0, 0, False)
 
 
-async def async_setup_entry(
-    hass: HomeAssistantType, config_entry: ConfigType, async_add_entities
-):
+async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][cover.DOMAIN]
 

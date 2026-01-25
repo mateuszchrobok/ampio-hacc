@@ -1,4 +1,5 @@
 """Ampio Sensors."""
+
 import functools
 import logging
 
@@ -69,9 +70,7 @@ class AmpioBinarySensor(AmpioEntity, RestoreEntity, binary_sensor.BinarySensorEn
 
     async def async_will_remove_from_hass(self):
         """Unsubscribe when removed."""
-        self._sub_state = await subscription.async_unsubscribe_topics(
-            self.hass, self._sub_state
-        )
+        self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
     def is_on(self):
@@ -93,9 +92,7 @@ class AmpioBinarySensor(AmpioEntity, RestoreEntity, binary_sensor.BinarySensorEn
     #     return True
 
 
-async def async_setup_entry(
-    hass: HomeAssistantType, config_entry: ConfigType, async_add_entities
-):
+async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][binary_sensor.DOMAIN]
 

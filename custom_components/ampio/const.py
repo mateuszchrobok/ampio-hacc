@@ -1,6 +1,5 @@
 """Ampio platform consts."""
 
-
 from homeassistant.components.alarm_control_panel import DOMAIN as ALARM_CONTROL_PANEL
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR
 from homeassistant.components.cover import DOMAIN as COVER

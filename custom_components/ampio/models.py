@@ -1,4 +1,5 @@
 """Ampio data models."""
+
 from __future__ import annotations
 
 import base64
@@ -207,7 +208,6 @@ class ItemTypes(str, Enum):
     AnalogOutput = "au"
 
 
-
 def base64decode(value: str):
     """Decode base64 string."""
     try:
@@ -371,18 +371,14 @@ class MSENSModuleInfo(AmpioModuleInfo):
         super().update_configs()
 
         for ampio_config in (
-            AmpioTempSensorConfig.from_ampio_device(
-                self, ItemName(base64encode("T:Temperature"))
-            ),
+            AmpioTempSensorConfig.from_ampio_device(self, ItemName(base64encode("T:Temperature"))),
             AmpioHumiditySensorConfig.from_ampio_device(
                 self, ItemName(base64encode("HU:Humidity"))
             ),
             AmpioPressureSensorConfig.from_ampio_device(
                 self, ItemName(base64encode("OS:Pressure"))
             ),
-            AmpioNoiseSensorConfig.from_ampio_device(
-                self, ItemName(base64encode("SS:Noise"))
-            ),
+            AmpioNoiseSensorConfig.from_ampio_device(self, ItemName(base64encode("SS:Noise"))),
             AmpioIlluminanceSensorConfig.from_ampio_device(
                 self, ItemName(base64encode("I:Illuminance"))
             ),
@@ -403,9 +399,7 @@ class MCONModuleInfo(AmpioModuleInfo):
         super().update_configs()
         if self.software % 100 == 1:  # INTEGRA
             for index, item in self.names.get(ItemTypes.BinaryInput, {}).items():
-                data = AmpioBinarySensorExtendedConfig.from_ampio_device(
-                    self, item, index
-                )
+                data = AmpioBinarySensorExtendedConfig.from_ampio_device(self, item, index)
                 if data:
                     self.configs["binary_sensor"].append(data.config)
                     self.unique_ids.add(data.unique_id)
@@ -426,6 +420,7 @@ class MCONModuleInfo(AmpioModuleInfo):
 
 class MLED1ModuleInfo(AmpioModuleInfo):
     """MLED-1 Ampio module information."""
+
     def update_configs(self) -> None:
         super().update_configs()
         _LOGGER.debug("MLED1: %s", self.names)
@@ -493,8 +488,8 @@ class MDOTModuleInfo(AmpioModuleInfo):
     def update_configs(self) -> None:
         """Generat module configuration."""
         super().update_configs()
-        for index in range(1,
-            self._BUTTONS + 1
+        for index in range(
+            1, self._BUTTONS + 1
         ):  # regardles of names module has always fixed physical touch buttons
             item = self.names.get(ItemTypes.BinaryInput, {}).get(index)
             if item is None:
@@ -951,8 +946,8 @@ class AmpioCoverConfig(AmpioConfig):
             CONF_NAME: f"ampio-{mac}-co{index}",
             CONF_FRIENDLY_NAME: item.name,
             CONF_STATE_TOPIC: f"ampio/from/{mac}/state/a/{index}",
-            CONF_CLOSING_STATE_TOPIC: f"ampio/from/{mac}/state/o/{2*(index-1)+1}",
-            CONF_OPENING_STATE_TOPIC: f"ampio/from/{mac}/state/o/{2*(index)}",
+            CONF_CLOSING_STATE_TOPIC: f"ampio/from/{mac}/state/o/{2 * (index - 1) + 1}",
+            CONF_OPENING_STATE_TOPIC: f"ampio/from/{mac}/state/o/{2 * (index)}",
             CONF_COMMAND_TOPIC: f"ampio/to/{mac}/o/{index}/cmd",
             CONF_RAW_TOPIC: f"ampio/to/{mac}/raw",
             CONF_DEVICE: ampio_device.as_hass_device(),
@@ -960,7 +955,9 @@ class AmpioCoverConfig(AmpioConfig):
 
         if device_class not in ["garage", "valve"]:
             config.update(
-                {CONF_TILT_POSITION_TOPIC: f"ampio/from/{mac}/state/a/{6+index}",}
+                {
+                    CONF_TILT_POSITION_TOPIC: f"ampio/from/{mac}/state/a/{6 + index}",
+                }
             )
 
         if device_class:
@@ -980,9 +977,7 @@ class AmpioSatelConfig(AmpioConfig):
         """Create alarm config from ampio device."""
         away = set()
         home = set()
-        items: Dict[int, ItemName] = ampio_device.names.get(
-            ItemTypes.AnalogOutput, {}
-        ).items()
+        items: Dict[int, ItemName] = ampio_device.names.get(ItemTypes.AnalogOutput, {}).items()
         mac = ampio_device.user_mac
         for index, item in items:
             if item.prefix in ("A", "B", None):  # Away or Both or Not defined

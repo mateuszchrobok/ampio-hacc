@@ -1,4 +1,5 @@
 """Ampio Lights."""
+
 import functools
 import logging
 
@@ -142,24 +143,18 @@ class AmpioLight(AmpioEntity, light.LightEntity):
 
     async def async_will_remove_from_hass(self):
         """Unsubscribe when removed."""
-        self._sub_state = await subscription.async_unsubscribe_topics(
-            self.hass, self._sub_state
-        )
+        self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
     def supported_features(self):
         """Flag supported features."""
         supported_features = 0
         supported_features |= (
-            self._config.get(CONF_BRIGHTNESS_COMMAND_TOPIC) is not None
-            and SUPPORT_BRIGHTNESS
+            self._config.get(CONF_BRIGHTNESS_COMMAND_TOPIC) is not None and SUPPORT_BRIGHTNESS
         )
+        supported_features |= self._config.get(CONF_RGB_COMMAND_TOPIC) is not None and SUPPORT_COLOR
         supported_features |= (
-            self._config.get(CONF_RGB_COMMAND_TOPIC) is not None and SUPPORT_COLOR
-        )
-        supported_features |= (
-            self._config.get(CONF_WHITE_VALUE_COMMAND_TOPIC) is not None
-            and SUPPORT_WHITE_VALUE
+            self._config.get(CONF_WHITE_VALUE_COMMAND_TOPIC) is not None and SUPPORT_WHITE_VALUE
         )
         return supported_features
 
@@ -192,9 +187,7 @@ class AmpioLight(AmpioEntity, light.LightEntity):
     async def async_turn_off(self, **kwargs):
         """Turn the entity off."""
         if self._config.get(CONF_RGB_COMMAND_TOPIC) is not None:
-            async_publish(
-                self.hass, self._config[CONF_RGB_COMMAND_TOPIC], "off", 0, False
-            )
+            async_publish(self.hass, self._config[CONF_RGB_COMMAND_TOPIC], "off", 0, False)
         else:
             async_publish(self.hass, self._config[CONF_COMMAND_TOPIC], 0, 0, False)
 
@@ -205,10 +198,7 @@ class AmpioLight(AmpioEntity, light.LightEntity):
         if ATTR_BRIGHTNESS not in kwargs:
             kwargs[ATTR_BRIGHTNESS] = self._brightness if self._brightness else 255
 
-        if (
-            ATTR_HS_COLOR in kwargs
-            and self._config.get(CONF_RGB_COMMAND_TOPIC) is not None
-        ):
+        if ATTR_HS_COLOR in kwargs and self._config.get(CONF_RGB_COMMAND_TOPIC) is not None:
             hs_color = kwargs[ATTR_HS_COLOR]
 
             if self._config.get(CONF_BRIGHTNESS_COMMAND_TOPIC) is not None:
@@ -217,13 +207,9 @@ class AmpioLight(AmpioEntity, light.LightEntity):
                 brightness = kwargs.get(
                     ATTR_BRIGHTNESS, self._brightness if self._brightness else 255
                 )
-            rgb = color_util.color_hsv_to_RGB(
-                hs_color[0], hs_color[1], brightness / 255 * 100
-            )
+            rgb = color_util.color_hsv_to_RGB(hs_color[0], hs_color[1], brightness / 255 * 100)
             rgb_color_str = ",".join(map(str, rgb))
-            async_publish(
-                self.hass, self._config[CONF_RGB_COMMAND_TOPIC], rgb_color_str, 0, False
-            )
+            async_publish(self.hass, self._config[CONF_RGB_COMMAND_TOPIC], rgb_color_str, 0, False)
 
         if (
             ATTR_BRIGHTNESS in kwargs
@@ -253,14 +239,9 @@ class AmpioLight(AmpioEntity, light.LightEntity):
             )
             rgb_color_str = ",".join(map(str, rgb))
 
-            async_publish(
-                self.hass, self._config[CONF_RGB_COMMAND_TOPIC], rgb_color_str, 0, False
-            )
+            async_publish(self.hass, self._config[CONF_RGB_COMMAND_TOPIC], rgb_color_str, 0, False)
 
-        if (
-            ATTR_WHITE_VALUE in kwargs
-            and self._config[CONF_WHITE_VALUE_COMMAND_TOPIC] is not None
-        ):
+        if ATTR_WHITE_VALUE in kwargs and self._config[CONF_WHITE_VALUE_COMMAND_TOPIC] is not None:
             percent_white = float(kwargs[ATTR_WHITE_VALUE]) / 255
             white_scale = 255
             device_white_value = min(round(percent_white * white_scale), white_scale)
@@ -282,9 +263,7 @@ class AmpioLight(AmpioEntity, light.LightEntity):
             )
 
 
-async def async_setup_entry(
-    hass: HomeAssistantType, config_entry: ConfigType, async_add_entities
-):
+async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][light.DOMAIN]
 

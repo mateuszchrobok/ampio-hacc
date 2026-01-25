@@ -1,4 +1,5 @@
 """Ampio Switch."""
+
 import functools
 import logging
 
@@ -57,9 +58,7 @@ class AmpioSwitch(AmpioEntity, switch.SwitchEntity):
 
     async def async_will_remove_from_hass(self):
         """Unsubscribe when removed."""
-        self._sub_state = await subscription.async_unsubscribe_topics(
-            self.hass, self._sub_state
-        )
+        self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
     def is_on(self):
@@ -76,9 +75,7 @@ class AmpioSwitch(AmpioEntity, switch.SwitchEntity):
         async_publish(self.hass, self._config[CONF_COMMAND_TOPIC], 1, 0, False)
 
 
-async def async_setup_entry(
-    hass: HomeAssistantType, config_entry: ConfigType, async_add_entities
-):
+async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][switch.DOMAIN]
 

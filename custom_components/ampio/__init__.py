@@ -1,4 +1,5 @@
 """Ampio Systems Platform."""
+
 import logging
 
 import voluptuous as vol
@@ -93,7 +94,9 @@ async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry) 
     conf = CONFIG_SCHEMA({DOMAIN: dict(config_entry.data)})[DOMAIN]
 
     ampio_data[DATA_AMPIO_API]: AmpioAPI = AmpioAPI(
-        hass, config_entry, conf,
+        hass,
+        config_entry,
+        conf,
     )
 
     ampio_data[DATA_AMPIO_DISPATCHERS] = []
