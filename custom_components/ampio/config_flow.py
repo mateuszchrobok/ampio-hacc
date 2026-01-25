@@ -14,7 +14,7 @@ KEEPALIVE = 600
 
 
 @config_entries.HANDLERS.register("ampio")
-class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a Ampio config flow."""
 
     VERSION = 1

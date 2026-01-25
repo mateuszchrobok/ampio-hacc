@@ -92,7 +92,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     conf = CONFIG_SCHEMA({DOMAIN: dict(config_entry.data)})[DOMAIN]
 
-    ampio_data[DATA_AMPIO_API]: AmpioAPI = AmpioAPI(
+    ampio_data[DATA_AMPIO_API] = AmpioAPI(
         hass,
         config_entry,
         conf,
