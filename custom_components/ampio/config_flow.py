@@ -62,9 +62,13 @@ class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info):
         """Prepare configuration for a discovered Ampio device."""
-        print(discovery_info)
         self._broker = discovery_info[CONF_HOST]
         self._port = discovery_info[CONF_PORT]
+
+        # Set unique ID based on broker host to prevent duplicate entries
+        await self.async_set_unique_id(f"ampio_{self._broker}")
+        self._abort_if_unique_id_configured()
+
         return self.async_show_form(
             step_id="broker", description_placeholders={"name": self._broker}
         )
