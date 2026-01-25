@@ -4,10 +4,10 @@ import functools
 import logging
 
 from homeassistant.components import cover
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.helpers.typing import ConfigType
 
 from . import discovery, subscription
 from .client import async_publish
@@ -239,7 +239,7 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
         async_publish(self.hass, self._config[CONF_COMMAND_TOPIC], 0, 0, False)
 
 
-async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][cover.DOMAIN]
 

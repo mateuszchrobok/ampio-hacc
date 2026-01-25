@@ -12,11 +12,11 @@ import voluptuous as vol
 from homeassistant.components.mqtt import Subscription
 from homeassistant.components.mqtt.models import MessageCallbackType
 from homeassistant.const import CONF_CLIENT_ID, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
-from homeassistant.core import Callable, callback
+from homeassistant.core import Callable, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import dispatcher_send
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import bind_hass
 from homeassistant.util import dt as dt_util
 from homeassistant.util.logging import catch_log_exception
@@ -75,7 +75,7 @@ SubscribePayloadType = Union[str, bytes]  # Only bytes if encoding is None
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_discovery(hass: HomeAssistantType, conf: ConfigType, config_entry) -> bool:
+async def async_setup_discovery(hass: HomeAssistant, conf: ConfigType, config_entry) -> bool:
     """Start Ampio Discovery."""
     success: bool = await discovery.async_start(hass, config_entry)
 
@@ -84,14 +84,14 @@ async def async_setup_discovery(hass: HomeAssistantType, conf: ConfigType, confi
 
 @callback
 @bind_hass
-def async_publish(hass: HomeAssistantType, topic: Any, payload, qos=None, retain=None) -> None:
+def async_publish(hass: HomeAssistant, topic: Any, payload, qos=None, retain=None) -> None:
     """Publish message to an MQTT topic."""
     hass.add_job(hass.data[DATA_AMPIO][DATA_AMPIO_API].async_publish, topic, payload, qos, retain)
 
 
 @bind_hass
 async def async_subscribe(
-    hass: HomeAssistantType,
+    hass: HomeAssistant,
     topic: str,
     msg_callback: MessageCallbackType,
     qos: int = DEFAULT_QOS,
@@ -120,7 +120,7 @@ class AmpioAPI:
 
     def __init__(
         self,
-        hass: HomeAssistantType,
+        hass: HomeAssistant,
         config_entry,
         conf,
     ) -> None:

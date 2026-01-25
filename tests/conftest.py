@@ -40,6 +40,7 @@ _ha_mock.core = MagicMock()
 _ha_mock.core.callback = lambda x: x
 _ha_mock.core.Callable = MagicMock()
 _ha_mock.core.Event = MagicMock()
+_ha_mock.core.HomeAssistant = MagicMock()
 
 # Exceptions
 _ha_mock.exceptions = MagicMock()

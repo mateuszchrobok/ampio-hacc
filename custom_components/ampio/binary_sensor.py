@@ -4,10 +4,10 @@ import functools
 import logging
 
 from homeassistant.components import binary_sensor
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.const import STATE_ON
 
 from . import discovery, subscription
@@ -92,7 +92,7 @@ class AmpioBinarySensor(AmpioEntity, RestoreEntity, binary_sensor.BinarySensorEn
     #     return True
 
 
-async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][binary_sensor.DOMAIN]
 
