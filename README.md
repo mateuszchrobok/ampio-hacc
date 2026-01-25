@@ -1,80 +1,93 @@
 # Home Assistant Ampio Custom Integration
 
-[![GH-release](https://img.shields.io/github/v/release/kstaniek/ampio-hacc.svg?style=flat-square)](https://github.com/kstaniek/ampio-hacc/releases)
-[![GH-downloads](https://img.shields.io/github/downloads/kstaniek/ampio-hacc/total?style=flat-square)](https://github.com/kstaniek/ampio-hacc/releases)
-[![GH-last-commit](https://img.shields.io/github/last-commit/kstaniek/ampio-hacc.svg?style=flat-square)](https://github.com/kstaniek/ampio-hacc/commits/master)
-[![GH-code-size](https://img.shields.io/github/languages/code-size/kstaniek/ampio-hacc.svg?color=red&style=flat-square)](https://github.com/kstaniek/ampio-hacc)
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=flat-square)](https://github.com/hacs)
-
+[![CI](https://github.com/mateuszchrobok/ampio-hacc/actions/workflows/ci.yaml/badge.svg)](https://github.com/mateuszchrobok/ampio-hacc/actions/workflows/ci.yaml)
+[![GH-release](https://img.shields.io/github/v/release/mateuszchrobok/ampio-hacc.svg?style=flat-square)](https://github.com/mateuszchrobok/ampio-hacc/releases)
+[![GH-last-commit](https://img.shields.io/github/last-commit/mateuszchrobok/ampio-hacc.svg?style=flat-square)](https://github.com/mateuszchrobok/ampio-hacc/commits/update_hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/hacs)
 
 [![Ampio](https://ampio.pl/wp-content/themes/1140FluidStarkers/images/ampio_dark.png)](https://ampio.pl)
 
-This is the custom integration of Ampio Smart Home System with  Home Assistant.
+Custom integration for [Ampio Smart Home System](https://ampio.pl) with Home Assistant.
 
-It uses MQTT connecting directly to the MQTT broker running on Ampio Server.
+Connects via MQTT directly to the broker running on Ampio Server.
 
-Currently there are following modules supported:
-- MSERV-3s - flags
-- MCON - Satel only
-- MSENS - Both types
-- MROL-4s
-- MPR-8s
-- MOC-4
-- MRT-16s
-- MLED-1
-- MDIM-8s
-- MRGBu-1
-- MDOT-2
-- MDOT-4
-- MDOT-9
-- MDOT-15LCD
+## Supported Modules
 
-The integation works with Ampio MQTT Bridge version: 3.41.2
+| Module | Description |
+|--------|-------------|
+| MSERV-3s | Server flags |
+| MCON | Satel integration |
+| MSENS | Environmental sensors (both types) |
+| MROL-4s | Roller shutters |
+| MPR-8s | Relay outputs |
+| MOC-4 | Output controller |
+| MRT-16s | Temperature sensors |
+| MLED-1 | LED controller |
+| MDIM-8s | Dimmers |
+| MRGBu-1 | RGBW controller |
+| MDOT-2/4/9/15LCD | Touch panels |
 
-## Installtion
-Copy the ampio folder and all of its contents into your Home Assistant's custom_components folder. This is often located inside of your /config folder. If you are running Hass.io, use SAMBA to copy the folder over. If you are running Home Assistant Supervised, the custom_components folder might be located at /usr/share/hassio/homeassistant. It is possible that your custom_components folder does not exist. If that is the case, create the folder in the proper location, and then copy the localtuya folder and all of its contents inside the newly created custom_components folder.
+**Required**: Ampio MQTT Bridge version 3.41.2+
 
-Alternatively, you can install Ampio integration through HACS by adding this repository.
+## Installation
+
+### HACS (Recommended)
+
+1. Open HACS in Home Assistant
+2. Go to Integrations
+3. Click the three dots menu → Custom repositories
+4. Add `https://github.com/mateuszchrobok/ampio-hacc` as Integration
+5. Search for "Ampio" and install
+6. Restart Home Assistant
+
+### Manual
+
+Copy the `custom_components/ampio` folder to your Home Assistant's `custom_components` directory.
 
 ## Configuration
 
-Start by going to Configuration - Integration and pressing the "+" button to create a new Integration, then select Ampio in the drop-down menu.
+1. Go to **Settings → Devices & Services**
+2. Click **+ Add Integration**
+3. Search for **Ampio**
+4. Enter the Ampio Server IP address (default port: 1883)
+5. Use admin credentials from Ampio Smart Home Application
+6. Click **Submit**
 
-![config](https://github.com/kstaniek/ampio-hacc/blob/master/static/config1.png)
+> **Note**: This custom integration uses the same domain as Home Assistant's built-in Ampio integration. The custom component provides enhanced functionality and will take precedence when installed.
 
-Provide the Ampio server IP address and leave default port number.
-The username should be admin and with the admin pasword configured for Ampio Smart Home Application.
-Click `Submit` button.
+## Development
 
-![config](https://github.com/kstaniek/ampio-hacc/blob/master/static/config2.png)
+```bash
+# Install dependencies
+pip install -e ".[dev]"
 
-Click `Finish`
+# Run linting
+ruff check custom_components/ampio
 
-Once you finish the configuration you should see the Ampio integration on the list of installe integration with the number of discovered items.
-
-![config](https://github.com/kstaniek/ampio-hacc/blob/master/static/config3.png)
-
-The configuration is done.
-
-## Thanks to
-
-Olek from Ampio for help, patience and effort to build the stable MQTT Broker for Ampio Smart Home System.
+# Run tests
+pytest tests/ -v
+```
 
 ## Credits & Attribution
 
 This project is a fork of the original Ampio Home Assistant integration.
 
 ### Original Authors
-- **Klaudiusz Staniek** ([@kstaniek](https://github.com/kstaniek)) - Original creator and primary developer
-  - Original repository: https://github.com/kstaniek/ampio-hacc
+- **Klaudiusz Staniek** ([@kstaniek](https://github.com/kstaniek)) - Original creator
+  - Repository: https://github.com/kstaniek/ampio-hacc
 
 ### Contributors
-- **Przemysław Szypowicz** ([@pszypowicz](https://github.com/pszypowicz)) - Hassfest validation, version tagging
-  - Intermediate fork: https://github.com/pszypowicz/ampio-hacc
+- **Przemysław Szypowicz** ([@pszypowicz](https://github.com/pszypowicz)) - Hassfest fixes
+  - Fork: https://github.com/pszypowicz/ampio-hacc
 
-### Fork Maintainer
-- **Mateusz Chrobok** ([@mateuszchrobok](https://github.com/mateuszchrobok)) - Current fork maintainer
+### Current Maintainer
+- **Mateusz Chrobok** ([@mateuszchrobok](https://github.com/mateuszchrobok))
 
-### License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Thanks
+
+Special thanks to Olek from Ampio for help building the stable MQTT Broker.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
 Original copyright © 2020 Klaudiusz Staniek.

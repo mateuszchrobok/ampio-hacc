@@ -29,7 +29,7 @@ class TestBase64Decode:
 
     def test_decode_utf8_special_chars(self):
         """Test decoding UTF-8 with special characters."""
-        encoded = base64.b64encode("Temperature".encode("utf-8")).decode()
+        encoded = base64.b64encode(b"Temperature").decode()
         assert base64decode(encoded) == "Temperature"
 
 

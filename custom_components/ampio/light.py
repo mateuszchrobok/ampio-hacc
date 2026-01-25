@@ -3,6 +3,7 @@
 import functools
 import logging
 
+import homeassistant.util.color as color_util
 from homeassistant.components import light
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -15,7 +16,6 @@ from homeassistant.components.light import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import ConfigType
-import homeassistant.util.color as color_util
 
 from . import discovery, subscription
 from .client import async_publish

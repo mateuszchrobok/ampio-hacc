@@ -1,7 +1,7 @@
 """Ampio Entities."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from homeassistant.const import (
     CONF_DEVICE,
@@ -11,10 +11,10 @@ from homeassistant.const import (
     CONF_NAME,
 )
 from homeassistant.core import Event
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
-
 
 from .const import CONF_STATE_TOPIC, CONF_UNIQUE_ID
 
@@ -26,8 +26,8 @@ class AmpioEntity(Entity):
 
     def __init__(self, config):
         """Initialize the sensor."""
-        self._config: Dict[str, Any] = config
-        self._device_info: Dict[str, Any] = config.get(CONF_DEVICE)
+        self._config: dict[str, Any] = config
+        self._device_info: dict[str, Any] = config.get(CONF_DEVICE)
         self._unique_id = config.get(CONF_UNIQUE_ID)
         self._state = None
         self._sub_state = None
@@ -53,7 +53,7 @@ class AmpioEntity(Entity):
         return self._available
 
     @property
-    def device_class(self) -> Optional[str]:
+    def device_class(self) -> str | None:
         """Return the device class of the sensor."""
         return self._config.get(CONF_DEVICE_CLASS)
 
@@ -85,7 +85,7 @@ class AmpioEntity(Entity):
         self._available = True
 
     @property
-    def device_state_attributes(self) -> Optional[Dict[str, Any]]:
+    def device_state_attributes(self) -> dict[str, Any] | None:
         """Return device specific state attributes.
         Implemented by platform classes. Convention for attribute names
         is lowercase snake_case.
@@ -101,7 +101,7 @@ class AmpioEntity(Entity):
 class AmpioEntityDeviceInfo(Entity):
     """Mixin used for mqtt platforms that support the device registry."""
 
-    def __init__(self, device_config: Optional[ConfigType], config_entry=None) -> None:
+    def __init__(self, device_config: ConfigType | None, config_entry=None) -> None:
         """Initialize the device mixin."""
         self._device_config = device_config
         self._config_entry = config_entry

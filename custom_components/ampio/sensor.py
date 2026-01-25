@@ -3,7 +3,6 @@
 import functools
 import logging
 from datetime import timedelta
-from typing import Optional
 
 from homeassistant.components import sensor
 from homeassistant.const import CONF_DEVICE_CLASS, CONF_ICON, CONF_UNIT_OF_MEASUREMENT
@@ -92,7 +91,7 @@ class AmpioSensor(AmpioEntity, RestoreEntity, Entity):
         return self._config.get(CONF_ICON)
 
     @property
-    def device_class(self) -> Optional[str]:
+    def device_class(self) -> str | None:
         """Return the device class of the sensor."""
         return self._config.get(CONF_DEVICE_CLASS)
 

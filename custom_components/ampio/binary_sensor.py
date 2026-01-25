@@ -4,11 +4,11 @@ import functools
 import logging
 
 from homeassistant.components import binary_sensor
+from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.const import STATE_ON
 
 from . import discovery, subscription
 from .const import (

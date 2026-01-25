@@ -4,7 +4,8 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -12,7 +13,8 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from . import client as ampio, subscription
+from . import client as ampio
+from . import subscription
 from .const import (
     ATTR_VERSION,
     CONFIG_ENTRY_IS_SETUP,
@@ -61,8 +63,8 @@ async def async_start(hass: HomeAssistant, config_entry=None) -> bool:
         device_registry = dr.async_get(hass)
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
-            connections={(CONNECTION_NETWORK_MAC, str("ampio-mqtt"))},
-            identifiers={(DOMAIN, str("ampio-mqtt"))},
+            connections={(CONNECTION_NETWORK_MAC, "ampio-mqtt")},
+            identifiers={(DOMAIN, "ampio-mqtt")},
             name="Ampio MQTT Server",
             manufacturer="Ampio",
             model="MQTT Server",
@@ -84,7 +86,7 @@ async def async_start(hass: HomeAssistant, config_entry=None) -> bool:
             _LOGGER.error("Unable to parse JSON module list: %s", err)
             return
 
-        modules: List[AmpioModuleInfo] = AmpioModuleInfo.from_topic_payload(payload)
+        modules: list[AmpioModuleInfo] = AmpioModuleInfo.from_topic_payload(payload)
 
         for module in modules:
             data_modules = hass.data[DATA_AMPIO_MODULES]
@@ -183,7 +185,7 @@ async def async_setup_device_registry(
 
 @callback
 async def async_add_entities(
-    _async_add_entities: Callable, entities: List[Dict[str, Any]], klass
+    _async_add_entities: Callable, entities: list[dict[str, Any]], klass
 ) -> None:
     """Add entities helper."""
     if not entities:

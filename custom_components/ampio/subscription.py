@@ -1,10 +1,10 @@
 """Helper to handle a set of topics to subscribe to."""
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 import attr
-
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import bind_hass
 
@@ -22,7 +22,7 @@ class EntitySubscription:
     hass = attr.ib(type=HomeAssistant)
     topic = attr.ib(type=str)
     message_callback = attr.ib(type=MessageCallbackType)
-    unsubscribe_callback = attr.ib(type=Optional[Callable[[], None]])
+    unsubscribe_callback = attr.ib(type=Callable[[], None] | None)
     qos = attr.ib(type=int, default=0)
     encoding = attr.ib(type=str, default="utf-8")
 
@@ -57,8 +57,8 @@ class EntitySubscription:
 @bind_hass
 async def async_subscribe_topics(
     hass: HomeAssistant,
-    new_state: Optional[Dict[str, EntitySubscription]],
-    topics: Dict[str, Any],
+    new_state: dict[str, EntitySubscription] | None,
+    topics: dict[str, Any],
 ):
     """(Re)Subscribe to a set of MQTT topics.
 
