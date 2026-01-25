@@ -1,165 +1,107 @@
-# CLAUDE.md - Ampio Home Assistant Custom Component
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-This is a **Home Assistant Custom Component** for integrating [Ampio Smart Home System](https://ampio.pl) with Home Assistant. It communicates via MQTT directly with the Ampio Server's MQTT broker.
+Home Assistant Custom Component for integrating [Ampio Smart Home System](https://ampio.pl). Communicates via MQTT directly with the Ampio Server's MQTT broker.
 
-### Fork History
-- **Original**: [kstaniek/ampio-hacc](https://github.com/kstaniek/ampio-hacc) by Klaudiusz Staniek (2020)
-- **Intermediate**: [pszypowicz/ampio-hacc](https://github.com/pszypowicz/ampio-hacc) by Przemysław Szypowicz (hassfest fixes)
-- **This Fork**: [mateuszchrobok/ampio-hacc](https://github.com/mateuszchrobok/ampio-hacc)
+**Fork lineage**: kstaniek/ampio-hacc → pszypowicz/ampio-hacc → mateuszchrobok/ampio-hacc
 
-## Technical Architecture
+## Development Commands
 
-### Communication
-- **Protocol**: MQTT (push-based, no polling)
-- **Discovery**: Zeroconf (`_ampio-mqtt._tcp.local.`)
-- **Required**: Ampio MQTT Bridge version 3.41.2+
+### Validation
+```bash
+# Run hassfest validation (same as GitHub Actions)
+docker run --rm -v $(pwd):/github/workspace homeassistant/amd64-builder:dev \
+  /bin/bash -c "pip install hassfest && hassfest"
+```
 
-### Supported Hardware (14 modules)
-| Module | Description |
-|--------|-------------|
-| MSERV-3s | Server flags |
-| MCON | Satel alarm integration |
-| MSENS | Environmental sensors (both types) |
-| MROL-4s | Roller shutters |
-| MPR-8s | Relay outputs |
-| MOC-4 | Output controller |
-| MRT-16s | Temperature sensors |
-| MLED-1 | LED controller |
-| MDIM-8s | Dimmer |
-| MRGBu-1 | RGBW LED |
-| MDOT-2/4/9/15LCD | Touch panels |
+### Local Testing
+```bash
+# Copy to HA custom_components (adjust path for your HA instance)
+cp -r custom_components/ampio /path/to/ha/config/custom_components/
 
-### HA Platforms
-- `switch` - Binary outputs
+# Restart Home Assistant to reload
+ha core restart  # or restart via UI
+```
+
+### Check logs for ampio
+```bash
+# Filter HA logs for ampio-related messages
+grep -i ampio /config/home-assistant.log
+```
+
+## Architecture
+
+### Communication Flow
+```
+Ampio Server MQTT Broker (port 1883)
+        ↓
+    AmpioAPI (client.py)
+        ↓ MQTT messages
+    discovery.py
+        ↓ creates entities
+    Platform files (sensor.py, switch.py, etc.)
+        ↓
+    Home Assistant Entity Registry
+```
+
+### Key Concepts
+
+**Push-based updates**: No polling. MQTT topics publish state changes which entities subscribe to.
+
+**Discovery process** (discovery.py):
+1. Subscribe to `ampio/from/info/version` → get server version
+2. Publish to `ampio/to/can/dev/list` → request device list
+3. For each device MAC, publish to `ampio/to/{mac}/description` → get item names
+4. Create entity configs based on module type (models.py)
+5. Signal platforms to create entities
+
+**Entity creation pattern**:
+- Platforms register via `async_dispatcher_connect(SIGNAL_ADD_ENTITIES, ...)`
+- After all modules discovered, `async_load_entities()` fires the signal
+- Each platform creates entities from accumulated configs in `hass.data[DATA_AMPIO][component]`
+
+### Data Storage Keys
+- `DATA_AMPIO` - Main data dict
+- `DATA_AMPIO_API` - AmpioAPI instance
+- `DATA_AMPIO_MODULES` - Modules pending discovery (cleared after discovery)
+- `DATA_AMPIO_UNIQUE_IDS` - Set of created entity IDs (prevents duplicates)
+
+## Module Type Mappings
+
+All device/entity type mappings are in `models.py`. When adding support for new Ampio modules:
+
+1. Add module type constant to `models.py`
+2. Define entity configs in `AmpioModuleInfo.update_configs()`
+3. Map MQTT topics to entity attributes
+4. Use existing platform (sensor, switch, light, cover, binary_sensor, alarm_control_panel) or create new
+
+## Supported Platforms
+- `sensor` - Environmental data (temperature, humidity, IAQ, CO2, pressure)
 - `binary_sensor` - Binary inputs
-- `sensor` - Environmental data (temperature, humidity, IAQ, CO2, etc.)
-- `light` - Dimmers, LED, RGBW
-- `cover` - Roller shutters
-- `alarm_control_panel` - Satel integration
+- `switch` - Binary outputs (relays)
+- `light` - Dimmers (MDIM-8s), LED (MLED-1), RGBW (MRGBu-1)
+- `cover` - Roller shutters (MROL-4s)
+- `alarm_control_panel` - Satel integration via MCON
 
-## Project Structure
+## MQTT Topic Structure
 
 ```
-ampio-hacc/
-├── custom_components/ampio/
-│   ├── __init__.py          # Integration setup, config entry
-│   ├── manifest.json        # HA integration manifest
-│   ├── config_flow.py       # UI configuration flow
-│   ├── const.py             # Constants and defaults
-│   ├── client.py            # MQTT client wrapper
-│   ├── discovery.py         # Device/entity discovery
-│   ├── entity.py            # Base entity classes
-│   ├── models.py            # Data models, type mappings (largest file)
-│   ├── subscription.py      # MQTT subscription management
-│   ├── validators.py        # Input validation
-│   ├── data_entry.py        # Config data handling
-│   ├── debug_info.py        # Debug utilities
-│   ├── sensor.py            # Sensor platform
-│   ├── binary_sensor.py     # Binary sensor platform
-│   ├── switch.py            # Switch platform
-│   ├── light.py             # Light platform (dimmer, RGBW)
-│   ├── cover.py             # Cover platform (shutters)
-│   ├── alarm_control_panel.py # Satel alarm platform
-│   ├── strings.json         # UI strings
-│   └── translations/        # Localization
-├── hacs.json                # HACS configuration
-├── info.md                  # HACS info page
-└── static/                  # Documentation images
+ampio/from/{mac}/{item}  - State updates from device
+ampio/to/{mac}/{item}    - Commands to device
+ampio/from/info/version  - Server version
+ampio/from/can/dev/list  - Device discovery response
+ampio/from/{mac}/description - Module names/config
 ```
 
-## Key Files
+## Dependencies
 
-### models.py (~1,012 lines)
-Contains all data models, device type mappings, and device classes. This is the largest file and defines:
-- 44 device class mappings
-- Module type definitions
-- Entity attribute mappings
+- `paho-mqtt==1.5.0` (pinned, newer 2.x has breaking API changes)
+- Home Assistant `mqtt` component (for Subscription model)
+- Zeroconf discovery: `_ampio-mqtt._tcp.local.`
 
-### client.py
-MQTT client implementation with:
-- Connection management
-- Message handling
-- Reconnection logic
+## GitHub Actions
 
-### discovery.py
-Handles automatic discovery of Ampio devices via:
-- MQTT topic parsing
-- Entity creation based on module type
-
-## Configuration
-
-### Via Home Assistant UI
-1. Settings → Integrations → Add → Ampio
-2. Enter Ampio Server IP (default port: 1883)
-3. Username: `admin`, Password: Ampio admin password
-
-### Required Ampio Setup
-- MQTT Bridge enabled on Ampio Server
-- Minimum bridge version: 3.41.2
-
-## Development Notes
-
-### Code Quality
-- Modern async/await patterns throughout
-- Clean separation of concerns
-- Push-based updates (efficient)
-- Proper HA device registry integration
-
-### Known Limitations
-- `paho-mqtt==1.5.0` pinned (current is 2.x)
-- Single MQTT client connection at a time
-- Some debug logging is sparse
-
-### Testing Changes
-1. Copy `custom_components/ampio/` to HA config
-2. Restart Home Assistant
-3. Check logs: `docker logs ix-home-assistant-home-assistant-1 | grep ampio`
-
-## Local Development
-
-### Installation for Testing
-```bash
-# Copy to HA custom_components
-scp -r custom_components/ampio root@10.10.10.10:/mnt/pool/docker/home-assistant/config/custom_components/
-
-# Or via docker exec
-ssh root@10.10.10.10 "docker exec ix-home-assistant-home-assistant-1 ls /config/custom_components/"
-```
-
-### Checking Logs
-```bash
-ssh root@10.10.10.10 "docker logs ix-home-assistant-home-assistant-1 2>&1 | grep -i ampio"
-```
-
-### Restart Integration
-```bash
-# Full HA restart
-ssh root@10.10.10.10 "docker restart ix-home-assistant-home-assistant-1"
-
-# Or reload integration via HA UI
-```
-
-## Use Case: IAQ Ventilation
-
-This fork is primarily used for reading MSENS IAQ (Indoor Air Quality) sensors to automate ventilation. Key sensors:
-- `sensor.msens_sypialnia_iaq` - Master bedroom IAQ
-- `sensor.msens_sypialnia_dzieci_iaq` - Children's bedroom IAQ
-
-IAQ values:
-- 0-50: Excellent
-- 51-100: Good
-- 101-150: Moderate
-- 151-200: Poor
-- 201+: Very poor
-
-## Related Documentation
-
-- **Parent CLAUDE.md**: `/Users/M/work/homeassistant/CLAUDE.md` - Full HA setup context
-- **Ampio Website**: https://ampio.pl
-- **Original Repo**: https://github.com/kstaniek/ampio-hacc
-
-## License
-
-MIT License - Original copyright © 2020 Klaudiusz Staniek
+- **hassfest**: Validates manifest.json and integration structure on every push/PR
