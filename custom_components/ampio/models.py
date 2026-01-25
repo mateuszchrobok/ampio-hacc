@@ -501,6 +501,117 @@ class MCONModuleInfo(AmpioModuleInfo):
                 self.unique_ids.add(satel_data.unique_id)
 
 
+class MCON232sModuleInfo(AmpioModuleInfo):
+    """MCON-232-s: RS-232 serial integration module.
+
+    Provides binary inputs and outputs for serial device integration.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        # Create binary sensors for inputs
+        for index in range(1, self.i + 1):
+            item = self.names.get(ItemTypes.BinaryInput, {}).get(index)
+            if item is None:
+                item = ItemName(base64encode(f"Input {index}"))
+
+            binary_data = AmpioBinarySensorConfig.from_ampio_device(self, item, index)
+            if binary_data and binary_data.unique_id:
+                self.configs["binary_sensor"].append(binary_data.config)
+                self.unique_ids.add(binary_data.unique_id)
+
+        # Create switches for outputs
+        for index in range(1, self.o + 1):
+            item = self.names.get(ItemTypes.BinaryOutput, {}).get(index)
+            if item is None:
+                item = ItemName(base64encode(f"Output {index}"))
+
+            # Check if it should be a light (L: prefix) or switch
+            if item.device_class == "light":
+                light_data = AmpioLightConfig.from_ampio_device(self, item, index)
+                if light_data and light_data.unique_id:
+                    self.configs["light"].append(light_data.config)
+                    self.unique_ids.add(light_data.unique_id)
+            else:
+                switch_data = AmpioSwitchConfig.from_ampio_device(self, item, index)
+                if switch_data and switch_data.unique_id:
+                    self.configs["switch"].append(switch_data.config)
+                    self.unique_ids.add(switch_data.unique_id)
+
+
+class MCON485sModuleInfo(MCON232sModuleInfo):
+    """MCON-485-s: RS-485 serial integration module.
+
+    Same functionality as MCON-232-s but with RS-485 interface.
+    """
+
+
+class MCONDLsModuleInfo(AmpioModuleInfo):
+    """MCON-DL-s: DALI lighting control module.
+
+    Provides DALI bus control for lighting fixtures.
+    Creates light entities for DALI outputs.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        # DALI outputs as dimmable lights
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            light_data = AmpioDimmableLightConfig.from_ampio_device(self, item, index)
+            if light_data and light_data.unique_id:
+                self.configs["light"].append(light_data.config)
+                self.unique_ids.add(light_data.unique_id)
+
+
+class MCONIRModuleInfo(AmpioModuleInfo):
+    """MCON-IR: Infrared control module.
+
+    Provides IR transmitter control for A/V equipment.
+    Creates switch entities for IR commands.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        # IR outputs as switches
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            switch_data = AmpioSwitchConfig.from_ampio_device(self, item, index)
+            if switch_data and switch_data.unique_id:
+                self.configs["switch"].append(switch_data.config)
+                self.unique_ids.add(switch_data.unique_id)
+
+
+class MCONHVACpModuleInfo(AmpioModuleInfo):
+    """MCON-HVAC-p: HVAC integration module.
+
+    Provides integration with HVAC systems.
+    Creates climate and sensor entities.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        # Temperature sensors
+        for index, item in self.names.get(ItemTypes.Temperature, {}).items():
+            sensor_data = AmpioTempSensorConfig.from_ampio_device(self, item, index)
+            if sensor_data and sensor_data.unique_id:
+                self.configs["sensor"].append(sensor_data.config)
+                self.unique_ids.add(sensor_data.unique_id)
+
+        # Control outputs as switches
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            switch_data = AmpioSwitchConfig.from_ampio_device(self, item, index)
+            if switch_data and switch_data.unique_id:
+                self.configs["switch"].append(switch_data.config)
+                self.unique_ids.add(switch_data.unique_id)
+
+
 class MLED1ModuleInfo(AmpioModuleInfo):
     """MLED-1 Ampio module information."""
 
@@ -695,8 +806,14 @@ class MRT16sModuleInfo(AmpioModuleInfo):
 class METEO1sModuleInfo(AmpioModuleInfo):
     """METEO-1s Ampio module information (Weather station).
 
-    METEO-1s (code 34) is an outdoor environmental sensor similar to M-SENS.
-    Provides: temperature, humidity, pressure, wind speed, rain detection.
+    METEO-1s (code 34) is an outdoor environmental sensor module.
+    Provides comprehensive weather data including:
+    - Temperature (t/1)
+    - Humidity (au16l/1)
+    - Wind Speed (au16l/2)
+    - Wind Direction (au16/3)
+    - Precipitation/Rain (au16l/4)
+    - UV Index (au16l/5)
     """
 
     def update_configs(self) -> None:
@@ -709,12 +826,36 @@ class METEO1sModuleInfo(AmpioModuleInfo):
             ),
         ]
 
-        # Add additional sensors based on module capabilities
-        # Humidity
+        # Add additional weather sensors based on module capabilities
         if self.au > 0:
+            # Humidity sensor
             sensor_configs.append(
                 AmpioHumiditySensorConfig.from_ampio_device(
                     self, ItemName(base64encode("HU:Outdoor Humidity")), 1
+                )
+            )
+            # Wind Speed sensor
+            sensor_configs.append(
+                AmpioWindSpeedSensorConfig.from_ampio_device(
+                    self, ItemName(base64encode("Wind Speed")), 1
+                )
+            )
+            # Wind Direction sensor
+            sensor_configs.append(
+                AmpioWindDirectionSensorConfig.from_ampio_device(
+                    self, ItemName(base64encode("Wind Direction")), 1
+                )
+            )
+            # Precipitation/Rain sensor
+            sensor_configs.append(
+                AmpioPrecipitationSensorConfig.from_ampio_device(
+                    self, ItemName(base64encode("Precipitation")), 1
+                )
+            )
+            # UV Index sensor
+            sensor_configs.append(
+                AmpioUVIndexSensorConfig.from_ampio_device(
+                    self, ItemName(base64encode("UV Index")), 1
                 )
             )
 
@@ -747,6 +888,24 @@ class MRDN1sModuleInfo(AmpioModuleInfo):
 
     MRDN-1s (code 38) is a dimmer/RGB driver module.
     Creates light entities with brightness/color support.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            light_data = AmpioDimmableLightConfig.from_ampio_device(self, item, index)
+            if light_data and light_data.unique_id:
+                self.configs["light"].append(light_data.config)
+                self.unique_ids.add(light_data.unique_id)
+
+
+class MRDN5sModuleInfo(AmpioModuleInfo):
+    """MRDN-5s: 5-channel dimmer/RGB driver module.
+
+    Extended version of MRDN-1s with 5 dimmable outputs.
+    Creates light entities with brightness support.
     """
 
     def update_configs(self) -> None:
@@ -912,6 +1071,37 @@ class MOC8sModuleInfo(AmpioModuleInfo):
 
 class MOC32sModuleInfo(MOC8sModuleInfo):
     """M-OC-32s: 32 open collector outputs (lighting bus)."""
+
+
+# ============================================================================
+# ANALOG OUTPUT MODULES
+# ============================================================================
+
+
+class MOUT4sModuleInfo(AmpioModuleInfo):
+    """MOUT-4s: 4-channel analog output module (DIN rail).
+
+    Provides 0-10V analog outputs for controlling dimmers, valves, etc.
+    Creates number entities for analog output control.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        # Analog outputs as sensors (for monitoring current values)
+        for index, item in self.names.get(ItemTypes.AnalogOutput, {}).items():
+            sensor_data = AmpioAnalogOutputSensorConfig.from_ampio_device(self, item, index)
+            if sensor_data and sensor_data.unique_id:
+                self.configs["sensor"].append(sensor_data.config)
+                self.unique_ids.add(sensor_data.unique_id)
+
+
+class MOUT4pModuleInfo(MOUT4sModuleInfo):
+    """MOUT-4p: 4-channel analog output module (flush-mount).
+
+    Same functionality as MOUT-4s but in flush-mount form factor.
+    """
 
 
 # ============================================================================
@@ -1092,8 +1282,14 @@ class WLSensorModuleInfo(AmpioModuleInfo):
         """Update module specific configuration."""
         super().update_configs()
 
-        # Add battery level sensor if available
-        # Wireless modules typically report battery in a specific analog channel
+        # Add battery level sensor for wireless modules
+        # Battery is typically reported in analog channel 1
+        battery_data = AmpioBatterySensorConfig.from_ampio_device(
+            self, ItemName(base64encode("B:Battery")), 1
+        )
+        if battery_data and battery_data.unique_id:
+            self.configs["sensor"].append(battery_data.config)
+            self.unique_ids.add(battery_data.unique_id)
 
 
 class WZSENSTMPModuleInfo(WLSensorModuleInfo):
@@ -1111,8 +1307,8 @@ class WZSENSTMPModuleInfo(WLSensorModuleInfo):
                 self.unique_ids.add(sensor_data.unique_id)
 
 
-class WLREL2pModuleInfo(AmpioModuleInfo):
-    """WL-REL-2p: Wireless 2-relay module."""
+class WLREL2pModuleInfo(WLSensorModuleInfo):
+    """WL-REL-2p: Wireless 2-relay module with battery monitoring."""
 
     def update_configs(self) -> None:
         """Update module specific configuration."""
@@ -1125,8 +1321,8 @@ class WLREL2pModuleInfo(AmpioModuleInfo):
                 self.unique_ids.add(switch_data.unique_id)
 
 
-class WLRELROL1pModuleInfo(AmpioModuleInfo):
-    """WL-REL-ROL1p: Wireless roller shutter module."""
+class WLRELROL1pModuleInfo(WLSensorModuleInfo):
+    """WL-REL-ROL1p: Wireless roller shutter module with battery monitoring."""
 
     def update_configs(self) -> None:
         """Update module specific configuration."""
@@ -1139,8 +1335,8 @@ class WLRELROL1pModuleInfo(AmpioModuleInfo):
                 self.unique_ids.add(cover_data.unique_id)
 
 
-class WLOCRGBW1pModuleInfo(AmpioModuleInfo):
-    """WL-OC-RGBW1p: Wireless RGBW controller."""
+class WLOCRGBW1pModuleInfo(WLSensorModuleInfo):
+    """WL-OC-RGBW1p: Wireless RGBW controller with battery monitoring."""
 
     def update_configs(self) -> None:
         """Update module specific configuration."""
@@ -1175,6 +1371,43 @@ class MALARM8sModuleInfo(AmpioModuleInfo):
                 self.unique_ids.add(binary_data.unique_id)
 
         # TODO: Add alarm_control_panel entity for arm/disarm control
+
+
+# ============================================================================
+# AUDIO MODULES
+# ============================================================================
+
+
+class MAVAMPsModuleInfo(AmpioModuleInfo):
+    """MAV-AMP-s: Audio amplifier module.
+
+    Provides audio amplification with volume control, source selection, and mute.
+    Creates sensor entities for volume and source monitoring, and switch for mute.
+
+    Typical configuration:
+    - Analog outputs (au): Volume level (0-255), Source selection
+    - Binary outputs (o): Mute control (on/off)
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        _LOGGER.debug("MAV-AMP-s: %s", self.names)
+
+        # Volume and source control as sensors (analog outputs for monitoring)
+        for index, item in self.names.get(ItemTypes.AnalogOutput, {}).items():
+            sensor_data = AmpioAudioSensorConfig.from_ampio_device(self, item, index)
+            if sensor_data and sensor_data.unique_id:
+                self.configs["sensor"].append(sensor_data.config)
+                self.unique_ids.add(sensor_data.unique_id)
+
+        # Mute control as switch (binary output)
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            switch_data = AmpioSwitchConfig.from_ampio_device(self, item, index)
+            if switch_data and switch_data.unique_id:
+                self.configs["switch"].append(switch_data.config)
+                self.unique_ids.add(switch_data.unique_id)
 
 
 # ============================================================================
@@ -1261,10 +1494,17 @@ CLASS_FACTORY: dict[int, type[AmpioModuleInfo]] = {
     23: MRTsModuleInfo,
     # Integration modules
     25: MCONModuleInfo,
+    28: MCON232sModuleInfo,
+    29: MCON485sModuleInfo,
+    30: MCONDLsModuleInfo,
+    31: MCONIRModuleInfo,
+    32: MCONHVACpModuleInfo,
     # Output modules
     26: MOC4ModuleInfo,
     35: MOC8sModuleInfo,
     36: MOC32sModuleInfo,
+    51: MOUT4sModuleInfo,
+    52: MOUT4pModuleInfo,
     # Input modules
     37: MIN8sModuleInfo,
     39: MIN16sModuleInfo,
@@ -1281,6 +1521,8 @@ CLASS_FACTORY: dict[int, type[AmpioModuleInfo]] = {
     38: MRDN1sModuleInfo,
     49: MWRCModuleInfo,
     53: MALARM8sModuleInfo,
+    54: MAVAMPsModuleInfo,
+    55: MRDN5sModuleInfo,
     # Wireless
     56: WLREL2pModuleInfo,
     57: WLRELROL1pModuleInfo,
@@ -1480,6 +1722,109 @@ class AmpioCO2SensorConfig(AmpioConfig):
         return cls(config=config)
 
 
+class AmpioWindSpeedSensorConfig(AmpioConfig):
+    """Ampio Wind Speed Entity Configuration."""
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioWindSpeedSensorConfig:
+        """Create config from ampio device.
+
+        Wind speed sensor for METEO-1s weather station.
+        Uses au16l topic for 16-bit values with 0.1 resolution.
+        """
+        mac = ampio_device.user_mac
+        name = f"Wind Speed {ampio_device.name}"
+        config = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-ws{index}",
+            CONF_NAME: f"ampio-{mac}-ws{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_DEVICE_CLASS: "wind_speed",
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/au16l/2",
+            CONF_UNIT_OF_MEASUREMENT: "m/s",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+        return cls(config=config)
+
+
+class AmpioWindDirectionSensorConfig(AmpioConfig):
+    """Ampio Wind Direction Entity Configuration."""
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioWindDirectionSensorConfig:
+        """Create config from ampio device.
+
+        Wind direction sensor for METEO-1s weather station.
+        Returns direction in degrees (0-360).
+        """
+        mac = ampio_device.user_mac
+        name = f"Wind Direction {ampio_device.name}"
+        config = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-wd{index}",
+            CONF_NAME: f"ampio-{mac}-wd{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/au16/3",
+            CONF_UNIT_OF_MEASUREMENT: "°",
+            CONF_ICON: "mdi:compass-outline",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+        return cls(config=config)
+
+
+class AmpioPrecipitationSensorConfig(AmpioConfig):
+    """Ampio Precipitation/Rain Entity Configuration."""
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioPrecipitationSensorConfig:
+        """Create config from ampio device.
+
+        Precipitation/rain sensor for METEO-1s weather station.
+        Returns accumulated precipitation in mm.
+        """
+        mac = ampio_device.user_mac
+        name = f"Precipitation {ampio_device.name}"
+        config = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-rain{index}",
+            CONF_NAME: f"ampio-{mac}-rain{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_DEVICE_CLASS: "precipitation",
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/au16l/4",
+            CONF_UNIT_OF_MEASUREMENT: "mm",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+        return cls(config=config)
+
+
+class AmpioUVIndexSensorConfig(AmpioConfig):
+    """Ampio UV Index Entity Configuration."""
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioUVIndexSensorConfig:
+        """Create config from ampio device.
+
+        UV index sensor for METEO-1s weather station.
+        Returns UV index value (0-11+).
+        """
+        mac = ampio_device.user_mac
+        name = f"UV Index {ampio_device.name}"
+        config = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-uv{index}",
+            CONF_NAME: f"ampio-{mac}-uv{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/au16l/5",
+            CONF_ICON: "mdi:sun-wireless-outline",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+        return cls(config=config)
+
+
 class AmpioAnalogFlag8SensorConfig(AmpioConfig):
     """Ampio 8-bit Flag (afu8) Entity Configuration."""
 
@@ -1573,6 +1918,62 @@ class AmpioAnalogInputSensorConfig(AmpioConfig):
         return cls(config=config)
 
 
+class AmpioAnalogOutputSensorConfig(AmpioConfig):
+    """Ampio Analog Output (0-10V) Entity Configuration.
+
+    Used for MOUT-4s/4p analog output modules to monitor output values.
+    """
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioAnalogOutputSensorConfig:
+        """Create config from ampio device.
+
+        Analog output values (0-255) from state/au/<nr>.
+        Represents 0-10V output voltage.
+        """
+        mac = ampio_device.user_mac
+        name = item.name if item.name else f"Analog Output {index} {ampio_device.name}"
+        config = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-aout-{index}",
+            CONF_NAME: f"ampio-{mac}-aout-{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/au/{index}",
+            CONF_ICON: "mdi:sine-wave",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+        return cls(config=config)
+
+
+class AmpioBatterySensorConfig(AmpioConfig):
+    """Ampio Battery Level Entity Configuration.
+
+    Used for wireless modules to monitor battery level.
+    """
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioBatterySensorConfig:
+        """Create config from ampio device.
+
+        Battery level (0-100%) from state/a/<nr>.
+        """
+        mac = ampio_device.user_mac
+        name = f"Battery {ampio_device.name}"
+        config = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-battery-{index}",
+            CONF_NAME: f"ampio-{mac}-battery-{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_DEVICE_CLASS: "battery",
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/a/{index}",
+            CONF_UNIT_OF_MEASUREMENT: "%",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+        return cls(config=config)
+
+
 class AmpioPulseCounterSensorConfig(AmpioConfig):
     """Ampio Pulse Counter (energy/water meter) Entity Configuration."""
 
@@ -1595,6 +1996,36 @@ class AmpioPulseCounterSensorConfig(AmpioConfig):
             CONF_DEVICE_CLASS: "energy",  # Default, can be overridden based on item name
             CONF_DEVICE: ampio_device.as_hass_device(),
         }
+        return cls(config=config)
+
+
+class AmpioAudioSensorConfig(AmpioConfig):
+    """Ampio Audio Sensor Entity Configuration.
+
+    Used for MAV-AMP-s audio amplifier module to monitor volume and source.
+    """
+
+    @classmethod
+    def from_ampio_device(
+        cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
+    ) -> AmpioAudioSensorConfig:
+        """Create config from ampio device.
+
+        Audio sensor values (0-255) from state/au/<nr>.
+        Typically used for volume level (0-100%) or source selection.
+        """
+        mac = ampio_device.user_mac
+        name = item.name if item.name else f"Audio {index} {ampio_device.name}"
+
+        config: dict[str, Any] = {
+            CONF_UNIQUE_ID: f"ampio-{mac}-audio-{index}",
+            CONF_NAME: f"ampio-{mac}-audio-{index}",
+            CONF_FRIENDLY_NAME: name,
+            CONF_STATE_TOPIC: f"ampio/from/{mac}/state/au/{index}",
+            CONF_ICON: "mdi:volume-high",
+            CONF_DEVICE: ampio_device.as_hass_device(),
+        }
+
         return cls(config=config)
 
 

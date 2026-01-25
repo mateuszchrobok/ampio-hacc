@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-01-25
+
+### Added
+- **New Module Support**:
+  - MCON-DL-s (code 30): DALI lighting control module
+  - MCON-IR (code 31): Infrared control module
+  - MCON-HVAC-p (code 32): HVAC integration module
+  - MOUT-4s (code 51): 4-channel analog output module (DIN rail)
+  - MOUT-4p (code 52): 4-channel analog output module (flush-mount)
+  - MAV-AMP-s (code 54): Audio amplifier module
+  - MRDN-5s (code 55): 5-channel dimmer module
+- **METEO-1s Weather Station Enhancements**:
+  - Wind speed sensor (m/s)
+  - Wind direction sensor (degrees)
+  - Precipitation/rain sensor (mm)
+  - UV index sensor
+- **Wireless Module Battery Monitoring**:
+  - Battery level sensors for all wireless modules (WL-REL-2p, WL-REL-ROL1p, WL-OC-RGBW1p, WZ-SENS-TMP-p)
+  - New AmpioBatterySensorConfig class
+- **New Sensor Configuration Classes**:
+  - AmpioAnalogOutputSensorConfig for analog output monitoring
+  - AmpioAudioSensorConfig for audio amplifier volume/source
+  - AmpioWindSpeedSensorConfig, AmpioWindDirectionSensorConfig
+  - AmpioPrecipitationSensorConfig, AmpioUVIndexSensorConfig
+
+### Changed
+- Wireless modules now inherit from WLSensorModuleInfo for automatic battery monitoring
+- All 52 TYPE_CODES entries now have corresponding CLASS_FACTORY handlers
+
+### Documentation
+- Added comprehensive user documentation (docs/ENTITIES.md, docs/SERVICES.md)
+- Added troubleshooting guide (docs/TROUBLESHOOTING.md)
+- Added FAQ (docs/FAQ.md)
+- Added developer documentation (docs/API_REFERENCE.md, docs/PLATFORM_GUIDE.md, docs/TESTING.md)
+
 ## [1.3.0] - 2025-01-25
 
 ### Added
