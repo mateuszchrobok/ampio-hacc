@@ -1,27 +1,6 @@
 """Test fixtures for ampio-hacc."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
-
-
-@pytest.fixture
-def mock_mqtt_client():
-    """Mock paho-mqtt client."""
-    with patch("paho.mqtt.client.Client") as mock_client:
-        client_instance = MagicMock()
-        mock_client.return_value = client_instance
-        yield client_instance
-
-
-@pytest.fixture
-def mock_hass():
-    """Mock Home Assistant instance."""
-    hass = MagicMock()
-    hass.data = {}
-    hass.async_add_executor_job = MagicMock()
-    hass.add_job = MagicMock()
-    return hass
 
 
 @pytest.fixture
