@@ -199,7 +199,7 @@ class AmpioAPI:
         # pylint: disable=import-outside-toplevel
         import paho.mqtt.client as mqtt
 
-        result: int = None
+        result: int | None = None
         try:
             result = await self.hass.async_add_executor_job(
                 self._mqttc.connect,
@@ -212,8 +212,10 @@ class AmpioAPI:
 
         if result is not None and result != 0:
             _LOGGER.error("Failed to connect to Ampio MQTT Server: %s", mqtt.error_string(result))
+            return mqtt.error_string(result)
 
         self._mqttc.loop_start()
+        return "OK"
 
     async def async_disconnect(self):
         """Stop MQTT Client."""
@@ -268,7 +270,6 @@ class AmpioAPI:
         """
         _LOGGER.debug("Unsubscribing from %s", topic)
         async with self._paho_lock:
-            result: int = None
             result, _ = await self.hass.async_add_executor_job(self._mqttc.unsubscribe, topic)
             _raise_on_error(result)
 
@@ -277,7 +278,6 @@ class AmpioAPI:
         _LOGGER.debug("Subscribing to %s", topic)
 
         async with self._paho_lock:
-            result: int = None
             result, _ = await self.hass.async_add_executor_job(self._mqttc.subscribe, topic, qos)
             _raise_on_error(result)
 

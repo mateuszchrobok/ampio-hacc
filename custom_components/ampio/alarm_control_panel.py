@@ -124,7 +124,8 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
             """Handler new MQTT message."""
             data = IndexIntData.from_msg(msg)
             if data is None:
-                _LOGGER.error("Undable to parse MQTT message")
+                _LOGGER.error("Unable to parse MQTT message")
+                return
 
             if data.value == 1:
                 self._armed.add(data.index)
@@ -145,7 +146,8 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
             """Handler new MQTT message."""
             data = IndexIntData.from_msg(msg)
             if data is None:
-                _LOGGER.error("Undable to parse MQTT message")
+                _LOGGER.error("Unable to parse MQTT message")
+                return
 
             if data.value == 1:
                 self._alarm.add(data.index)
@@ -166,7 +168,8 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
             """Handler new MQTT message."""
             data = IndexIntData.from_msg(msg)
             if data is None:
-                _LOGGER.error("Undable to parse MQTT message")
+                _LOGGER.error("Unable to parse MQTT message")
+                return
 
             if data.value == 1:
                 self._entrytime.add(data.index)
@@ -187,7 +190,8 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
             """Handler new MQTT message."""
             data = IndexIntData.from_msg(msg)
             if data is None:
-                _LOGGER.error("Undable to parse MQTT message")
+                _LOGGER.error("Unable to parse MQTT message")
+                return
 
             if data.value == 1:
                 self._exittime.add(data.index)
@@ -208,7 +212,8 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
             """Handler new MQTT message."""
             data = IndexIntData.from_msg(msg)
             if data is None:
-                _LOGGER.error("Undable to parse MQTT message")
+                _LOGGER.error("Unable to parse MQTT message")
+                return
 
             if data.value == 1:
                 self._exittime10.add(data.index)
