@@ -20,7 +20,6 @@ from .const import (
     CONFIG_ENTRY_IS_SETUP,
     DATA_AMPIO,
     DATA_AMPIO_MODULES,
-    DATA_AMPIO_PLATFORM_LOADED,
     DATA_AMPIO_UNIQUE_IDS,
     DATA_CONFIG_ENTRY_LOCK,
     DEFAULT_QOS,
@@ -197,10 +196,5 @@ async def async_add_entities(
 
 
 async def async_load_entities(hass: HomeAssistant) -> None:
-    """Load entities after integration was setup."""
-    to_setup = hass.data[DATA_AMPIO][DATA_AMPIO_PLATFORM_LOADED]
-    results = await asyncio.gather(*to_setup, return_exceptions=True)
-    for res in results:
-        if isinstance(res, Exception):
-            _LOGGER.warning("Couldn't setup Ampio platform: %s", res)
+    """Load entities after all modules discovered."""
     async_dispatcher_send(hass, SIGNAL_ADD_ENTITIES)

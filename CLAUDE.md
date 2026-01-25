@@ -98,7 +98,7 @@ ampio/from/{mac}/description - Module names/config
 
 ## Dependencies
 
-- `paho-mqtt==1.5.0` (pinned, newer 2.x has breaking API changes)
+- `paho-mqtt>=2.0.0`
 - Home Assistant `mqtt` component (for Subscription model)
 - Zeroconf discovery: `_ampio-mqtt._tcp.local.`
 

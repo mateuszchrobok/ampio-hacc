@@ -1,7 +1,5 @@
 """Config flow to configure Ampio System."""
 
-from collections import OrderedDict
-
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.mqtt.config_flow import try_connection
@@ -13,12 +11,10 @@ CLIENT_ID = "HomeAssistant-{}".format("12312312")
 KEEPALIVE = 600
 
 
-@config_entries.HANDLERS.register("ampio")
 class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
-    """Handle a Ampio config flow."""
+    """Handle an Ampio config flow."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
 
     def __init__(self):
         """Initialize flow."""
@@ -50,11 +46,12 @@ class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignor
 
             errors["base"] = "cannot_connect"
 
-        fields = OrderedDict()
-        fields[vol.Required(CONF_BROKER, default=self._broker or vol.UNDEFINED)] = str
-        fields[vol.Required(CONF_PORT, default=self._port or 1883)] = vol.Coerce(int)
-        fields[vol.Optional(CONF_USERNAME)] = str
-        fields[vol.Optional(CONF_PASSWORD)] = str
+        fields = {
+            vol.Required(CONF_BROKER, default=self._broker or vol.UNDEFINED): str,
+            vol.Required(CONF_PORT, default=self._port or 1883): vol.Coerce(int),
+            vol.Optional(CONF_USERNAME): str,
+            vol.Optional(CONF_PASSWORD): str,
+        }
 
         return self.async_show_form(step_id="broker", data_schema=vol.Schema(fields), errors=errors)
 

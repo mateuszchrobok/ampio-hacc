@@ -25,7 +25,6 @@ from .const import (
     DATA_AMPIO,
     DATA_AMPIO_API,
     DATA_AMPIO_DISPATCHERS,
-    DATA_AMPIO_PLATFORM_LOADED,
     PROTOCOL_311,
 )
 
@@ -99,11 +98,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     )
 
     ampio_data[DATA_AMPIO_DISPATCHERS] = []
-    ampio_data[DATA_AMPIO_PLATFORM_LOADED] = []
 
-    for component in COMPONENTS:
-        coro = hass.config_entries.async_forward_entry_setup(config_entry, component)
-        ampio_data[DATA_AMPIO_PLATFORM_LOADED].append(hass.async_create_task(coro))
+    await hass.config_entries.async_forward_entry_setups(config_entry, COMPONENTS)
 
     await ampio_data[DATA_AMPIO_API].async_connect()
 
@@ -122,13 +118,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     return True
 
 
-async def async_unload_entry(hass, config_entry):
-    """Unload ZHA config entry."""
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Unload Ampio config entry."""
     dispatchers = hass.data[DATA_AMPIO].get(DATA_AMPIO_DISPATCHERS, [])
     for unsub_dispatcher in dispatchers:
         unsub_dispatcher()
 
-    for component in COMPONENTS:
-        await hass.config_entries.async_forward_entry_unload(config_entry, component)
-
-    return True
+    return await hass.config_entries.async_unload_platforms(config_entry, COMPONENTS)

@@ -8,10 +8,9 @@ from homeassistant.components import light
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_HS_COLOR,
-    ATTR_WHITE_VALUE,
-    SUPPORT_BRIGHTNESS,
-    SUPPORT_COLOR,
-    SUPPORT_WHITE_VALUE,
+    ATTR_WHITE,
+    ColorMode,
+    LightEntity,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -40,16 +39,16 @@ PLATFORM_SCHEMA: dict[str, object] = {}
 _LOGGER = logging.getLogger(__name__)
 
 
-class AmpioLight(AmpioEntity, light.LightEntity):
+class AmpioLight(AmpioEntity, LightEntity):
     """Representation of Ampio Light."""
 
     def __init__(self, config):
         """Initialize the light component."""
         AmpioEntity.__init__(self, config)
 
-        self._brightness = None
-        self._hs = None
-        self._white_value = None
+        self._brightness: int | None = None
+        self._hs: tuple[float, float] | None = None
+        self._white_value: float | None = None
 
     async def subscribe_topics(self):
         """(Re)Subscribe to topics."""
@@ -146,25 +145,37 @@ class AmpioLight(AmpioEntity, light.LightEntity):
         self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
     @property
-    def supported_features(self):
-        """Flag supported features."""
-        supported_features = 0
-        supported_features |= (
-            self._config.get(CONF_BRIGHTNESS_COMMAND_TOPIC) is not None and SUPPORT_BRIGHTNESS
-        )
-        supported_features |= self._config.get(CONF_RGB_COMMAND_TOPIC) is not None and SUPPORT_COLOR
-        supported_features |= (
-            self._config.get(CONF_WHITE_VALUE_COMMAND_TOPIC) is not None and SUPPORT_WHITE_VALUE
-        )
-        return supported_features
+    def supported_color_modes(self) -> set[ColorMode]:
+        """Flag supported color modes."""
+        modes: set[ColorMode] = set()
+        if self._config.get(CONF_RGB_COMMAND_TOPIC):
+            modes.add(ColorMode.HS)
+        if self._config.get(CONF_WHITE_VALUE_COMMAND_TOPIC):
+            modes.add(ColorMode.WHITE)
+        if self._config.get(CONF_BRIGHTNESS_COMMAND_TOPIC) and not modes:
+            modes.add(ColorMode.BRIGHTNESS)
+        if not modes:
+            modes.add(ColorMode.ONOFF)
+        return modes
 
     @property
-    def is_on(self):
-        """Return true if the binary sensor is on."""
+    def color_mode(self) -> ColorMode | None:
+        """Return the current color mode."""
+        if self._hs and any(self._hs):
+            return ColorMode.HS
+        if self._white_value:
+            return ColorMode.WHITE
+        if self._brightness:
+            return ColorMode.BRIGHTNESS
+        return ColorMode.ONOFF
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the light is on."""
         return self._state
 
     @property
-    def brightness(self):
+    def brightness(self) -> int | None:
         """Return the brightness of this light between 0..255."""
         brightness = self._brightness
         if brightness:
@@ -172,15 +183,7 @@ class AmpioLight(AmpioEntity, light.LightEntity):
         return brightness
 
     @property
-    def white_value(self):
-        """Return the white property."""
-        white_value = self._white_value
-        if white_value:
-            white_value = min(round(white_value), 255)
-        return white_value
-
-    @property
-    def hs_color(self):
+    def hs_color(self) -> tuple[float, float] | None:
         """Return the hs color value."""
         return self._hs
 
@@ -241,8 +244,8 @@ class AmpioLight(AmpioEntity, light.LightEntity):
 
             async_publish(self.hass, self._config[CONF_RGB_COMMAND_TOPIC], rgb_color_str, 0, False)
 
-        if ATTR_WHITE_VALUE in kwargs and self._config[CONF_WHITE_VALUE_COMMAND_TOPIC] is not None:
-            percent_white = float(kwargs[ATTR_WHITE_VALUE]) / 255
+        if ATTR_WHITE in kwargs and self._config.get(CONF_WHITE_VALUE_COMMAND_TOPIC) is not None:
+            percent_white = float(kwargs[ATTR_WHITE]) / 255
             white_scale = 255
             device_white_value = min(round(percent_white * white_scale), white_scale)
             async_publish(

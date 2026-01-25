@@ -19,6 +19,8 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
     "pre-commit>=3.7.0",
+    # Note: pytest-homeassistant-custom-component requires Python 3.13+
+    # Tests for models/validators work without HA fixtures
 ]
 
 [tool.setuptools.packages.find]
