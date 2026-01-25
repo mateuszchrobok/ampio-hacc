@@ -59,3 +59,22 @@ The configuration is done.
 ## Thanks to
 
 Olek from Ampio for help, patience and effort to build the stable MQTT Broker for Ampio Smart Home System.
+
+## Credits & Attribution
+
+This project is a fork of the original Ampio Home Assistant integration.
+
+### Original Authors
+- **Klaudiusz Staniek** ([@kstaniek](https://github.com/kstaniek)) - Original creator and primary developer
+  - Original repository: https://github.com/kstaniek/ampio-hacc
+
+### Contributors
+- **Przemysław Szypowicz** ([@pszypowicz](https://github.com/pszypowicz)) - Hassfest validation, version tagging
+  - Intermediate fork: https://github.com/pszypowicz/ampio-hacc
+
+### Fork Maintainer
+- **Mateusz Chrobok** ([@mateuszchrobok](https://github.com/mateuszchrobok)) - Current fork maintainer
+
+### License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Original copyright © 2020 Klaudiusz Staniek.
