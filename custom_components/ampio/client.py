@@ -1,14 +1,13 @@
 """Ampio MQTT api implementation."""
 
 import asyncio
-from itertools import groupby
 import logging
-from operator import attrgetter
 import re
-from typing import Any, List, Optional, Union
+from itertools import groupby
+from operator import attrgetter
+from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components.mqtt import Subscription
 from homeassistant.components.mqtt.models import MessageCallbackType
 from homeassistant.const import CONF_CLIENT_ID, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
@@ -69,7 +68,7 @@ CONFIG_SCHEMA = vol.Schema(
     }
 )
 
-SubscribePayloadType = Union[str, bytes]  # Only bytes if encoding is None
+SubscribePayloadType = str | bytes  # Only bytes if encoding is None
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,7 +94,7 @@ async def async_subscribe(
     topic: str,
     msg_callback: MessageCallbackType,
     qos: int = DEFAULT_QOS,
-    encoding: Optional[str] = "utf-8",
+    encoding: str | None = "utf-8",
 ):
     """Subscribe to an MQTT topic.
     Call the return value to unsubscribe.
@@ -130,7 +129,7 @@ class AmpioAPI:
         self.hass = hass
         self.config_entry = config_entry
         self.conf = conf
-        self.subscriptions: List[Subscription] = []
+        self.subscriptions: list[Subscription] = []
         self.connected = False
         self._mqttc: mqtt.Client = None
         self._paho_lock = asyncio.Lock()
@@ -232,7 +231,7 @@ class AmpioAPI:
         topic: str,
         msg_callback: MessageCallbackType,
         qos: int,
-        encoding: Optional[str] = None,
+        encoding: str | None = None,
     ) -> Callable[[], None]:
         """Set up a subscription to a topic with the provided qos.
         This method is a coroutine.

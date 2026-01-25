@@ -1,10 +1,8 @@
 """Config flow to configure Ampio System."""
 
 from collections import OrderedDict
-from typing import Optional
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.components.mqtt.config_flow import try_connection
 from homeassistant.components.mqtt.const import CONF_BROKER
@@ -24,8 +22,8 @@ class AmpioFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         """Initialize flow."""
-        self._broker: Optional[str] = None
-        self._port: Optional[int] = None
+        self._broker: str | None = None
+        self._port: int | None = None
 
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""

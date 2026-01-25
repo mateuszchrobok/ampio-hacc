@@ -29,11 +29,15 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "B", "C4"]
+select = ["E", "W", "F", "B", "C4", "I", "UP", "COM"]
 # Ignore rules that trigger on existing codebase:
 # - E501: Line too long
 # - B008: Function call in default argument
-ignore = ["E501", "B008"]
+# - COM812: Trailing comma missing (conflicts with formatter)
+ignore = ["E501", "B008", "COM812"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components.ampio"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101"]

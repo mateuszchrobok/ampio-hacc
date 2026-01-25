@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import base64
-from collections import defaultdict
 import datetime as dt
-from enum import Enum, IntEnum
 import logging
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections import defaultdict
+from collections.abc import Callable
+from enum import Enum, IntEnum
+from typing import Any
 
 import attr
-
 from homeassistant.const import (
     CONF_DEVICE,
     CONF_DEVICE_CLASS,
@@ -49,14 +49,14 @@ from .validators import (
     AMPIO_DEVICES_SCHEMA,
     ATTR_A,
     ATTR_AU,
-    ATTR_I,
-    ATTR_O,
     ATTR_D,
     ATTR_DATE_PROD,
     ATTR_FLAG,
+    ATTR_I,
     ATTR_MAC,
     ATTR_N,
     ATTR_NAME,
+    ATTR_O,
     ATTR_PCB,
     ATTR_PROTOCOL,
     ATTR_SOFTWARE,
@@ -137,7 +137,7 @@ class ModuleCodes(IntEnum):
 
 _LOGGER = logging.getLogger(__name__)
 
-PublishPayloadType = Union[str, bytes, int, float, None]
+PublishPayloadType = str | bytes | int | float | None
 
 
 @attr.s(slots=True, frozen=True)
@@ -155,7 +155,7 @@ class Message:
 MessageCallbackType = Callable[[Message], None]
 
 
-def extract_index_from_topic(topic: str) -> Optional[int]:
+def extract_index_from_topic(topic: str) -> int | None:
     """Takes last part of topic as number."""
     parts = topic.split("/")
     try:
@@ -172,7 +172,7 @@ class IndexIntData:
     value = attr.ib(type=int)
 
     @classmethod
-    def from_msg(cls, msg: Message) -> Optional[IndexIntData]:
+    def from_msg(cls, msg: Message) -> IndexIntData | None:
         """Create from MQTT message."""
         index = extract_index_from_topic(msg.topic)
         if index is None:
@@ -257,9 +257,9 @@ class ItemName:
         return None
 
     @classmethod
-    def from_topic_payload(cls, payload: Dict) -> List[ItemName]:
+    def from_topic_payload(cls, payload: dict) -> list[ItemName]:
         """Read from topic payload."""
-        names: Dict[str, Union[int, Dict]] = AMPIO_DESCRIPTIONS_SCHEMA(payload)
+        names: dict[str, int | dict] = AMPIO_DESCRIPTIONS_SCHEMA(payload)
         result = {}
         for name in names[ATTR_D]:
             name_data = name[ATTR_D]
@@ -320,7 +320,7 @@ class AmpioModuleInfo:
         """Return model name."""
         return f"{self.part_number} [{self.mac.upper()}/{self.user_mac.upper()}]"
 
-    def as_hass_device(self) -> Dict[str, Any]:
+    def as_hass_device(self) -> dict[str, Any]:
         """Return info in hass device format."""
         return {
             "connections": {(device_registry.CONNECTION_NETWORK_MAC, self.user_mac)},
@@ -333,7 +333,7 @@ class AmpioModuleInfo:
         }
 
     @classmethod
-    def from_topic_payload(cls, payload: dict) -> List[AmpioModuleInfo]:
+    def from_topic_payload(cls, payload: dict) -> list[AmpioModuleInfo]:
         """Create a module object from topic payload."""
         devices = AMPIO_DEVICES_SCHEMA(payload)
         result = []
@@ -359,7 +359,7 @@ class AmpioModuleInfo:
             )
         return result
 
-    def get_config_for_component(self, component: str) -> List:
+    def get_config_for_component(self, component: str) -> list:
         """Return list of entities for specific component."""
         return self.configs.get(component, [])
 
@@ -977,7 +977,7 @@ class AmpioSatelConfig(AmpioConfig):
         """Create alarm config from ampio device."""
         away = set()
         home = set()
-        items: Dict[int, ItemName] = ampio_device.names.get(ItemTypes.AnalogOutput, {}).items()
+        items: dict[int, ItemName] = ampio_device.names.get(ItemTypes.AnalogOutput, {}).items()
         mac = ampio_device.user_mac
         for index, item in items:
             if item.prefix in ("A", "B", None):  # Away or Both or Not defined

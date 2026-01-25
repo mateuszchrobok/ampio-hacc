@@ -3,7 +3,6 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, Union
 
 from homeassistant.components import alarm_control_panel as alarm
 from homeassistant.const import (
@@ -56,10 +55,10 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
         self._entrytime = set()
 
         self._home_zones = set()
-        self._home_cmd_data: Optional[str] = None
+        self._home_cmd_data: str | None = None
         self._away_zones = set()
-        self._away_cmd_data: Optional[str] = None
-        self._all_cmd_data: Optional[str] = None
+        self._away_cmd_data: str | None = None
+        self._all_cmd_data: str | None = None
         self._supported_features = 0
 
         if CONF_AWAY_ZONES in self._config:
@@ -85,7 +84,7 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, alarm.AlarmControlPanelEntity):
         self._all_cmd_data = mask.to_bytes(4, byteorder="little").hex()
 
     @property
-    def state(self) -> Union[None, str, int, float]:
+    def state(self) -> None | str | int | float:
         """Return the state of the entity."""
         if self._away_zones == self._armed & self._away_zones:
             self._state = STATE_ALARM_ARMED_AWAY
