@@ -74,9 +74,11 @@ jobs:
 
   hacs:
     runs-on: ubuntu-latest
-    continue-on-error: true  # Non-blocking - some checks require GitHub settings (issues, topics, brands)
     steps:
       - uses: actions/checkout@v4
       - uses: hacs/action@main
         with:
           category: integration
+          # Skip brands check - core 'ampio' integration already exists in HA
+          # See: https://github.com/hacs/integration/issues/3812
+          ignore: brands
