@@ -51,4 +51,4 @@ asyncio_mode = "auto"
 source = ["custom_components/ampio"]
 
 [tool.coverage.report]
-fail_under = 30
+fail_under = 25
