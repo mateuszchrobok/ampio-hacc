@@ -167,6 +167,7 @@ async def async_stop(hass: HomeAssistant) -> bool:
     hass.data[DISCOVERY_UNSUBSCRIBE] = await subscription.async_unsubscribe_topics(
         hass, hass.data[DISCOVERY_UNSUBSCRIBE]
     )
+    return True
 
 
 @callback

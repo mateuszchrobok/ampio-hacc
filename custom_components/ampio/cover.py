@@ -158,12 +158,12 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
         return self._tilt_position
 
     @property
-    def is_opening(self) -> bool:
+    def is_opening(self) -> bool | None:
         """Return if the cover is opening or not."""
         return self._opening
 
     @property
-    def is_closing(self) -> bool:
+    def is_closing(self) -> bool | None:
         """Return if the cover is closing or not."""
         return self._closing
 
@@ -193,7 +193,7 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
     async def async_set_cover_position(self, **kwargs):
         """Move the cover to a specific position."""
         position = kwargs.get("position")
-        if position is not None:
+        if position is not None and self._index is not None:
             cmd = b"\x00\x01"
             position = 0xFF & position
             position_bytes = position.to_bytes(1, byteorder="little")
@@ -204,6 +204,8 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
 
     async def async_open_cover_tilt(self, **kwargs):
         """Open the cover tilt."""
+        if self._index is None:
+            return
         cmd = b"\x00\x02"
         position = 0x64
         position_bytes = position.to_bytes(1, byteorder="little")
@@ -214,6 +216,8 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
 
     async def async_close_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
+        if self._index is None:
+            return
         cmd = b"\x00\x02"
         position = 0x00
         position_bytes = position.to_bytes(1, byteorder="little")
@@ -225,7 +229,7 @@ class AmpioCover(AmpioEntity, RestoreEntity, cover.CoverEntity):
     async def async_set_cover_tilt_position(self, **kwargs):
         """Move the cover tilt to a specific position."""
         position = kwargs.get("tilt_position")
-        if position is not None:
+        if position is not None and self._index is not None:
             cmd = b"\x00\x02"
             position = 0xFF & position
             position_bytes = position.to_bytes(1, byteorder="little")
