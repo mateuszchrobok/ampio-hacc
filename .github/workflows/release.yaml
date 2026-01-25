@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version
+        run: |
+          MANIFEST_VERSION=$(python -c "import json; print(json.load(open('custom_components/ampio/manifest.json'))['version'])")
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          [ "$MANIFEST_VERSION" = "$TAG_VERSION" ] || exit 1
+      - name: Create ZIP
+        run: cd custom_components && zip -r ../ampio.zip ampio
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ampio.zip
+          generate_release_notes: true

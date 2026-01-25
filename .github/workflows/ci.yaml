@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, update_hacs]
+  pull_request:
+    branches: [main, update_hacs]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - name: Ruff lint (custom_components)
+        run: ruff check custom_components/ampio
+      - name: Ruff lint (tests)
+        run: ruff check tests/
+      - name: Ruff format check (custom_components)
+        run: ruff format --check custom_components/ampio
+      - name: Ruff format check (tests)
+        run: ruff format --check tests/
+
+  validate-yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate YAML files
+        run: |
+          pip install yamllint
+          yamllint -d "{extends: relaxed, rules: {line-length: disable}}" .github/
+
+  validate-json:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON files
+        run: python -m json.tool custom_components/ampio/manifest.json > /dev/null
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install mypy voluptuous attrs paho-mqtt
+      - run: mypy custom_components/ampio --ignore-missing-imports
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v --cov=custom_components/ampio --cov-report=xml
+      - uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration

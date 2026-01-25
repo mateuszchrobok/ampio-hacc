@@ -166,9 +166,16 @@ class AmpioAPI:
 
         client_id = self.conf.get(CONF_CLIENT_ID)
         if client_id is None:
-            self._mqttc = mqtt.Client(protocol=mqtt.MQTTv311)
+            self._mqttc = mqtt.Client(
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                protocol=mqtt.MQTTv311,
+            )
         else:
-            self._mqttc = mqtt.Client(client_id, protocol=mqtt.MQTTv311)
+            self._mqttc = mqtt.Client(
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                client_id=client_id,
+                protocol=mqtt.MQTTv311,
+            )
 
         username = self.conf.get(CONF_USERNAME)
         password = self.conf.get(CONF_PASSWORD)
@@ -284,7 +291,9 @@ class AmpioAPI:
             )
             _raise_on_error(result)
 
-    def _mqtt_on_connect(self, _mqttc, _userdata, _flags, result_code: int) -> None:
+    def _mqtt_on_connect(
+        self, _mqttc, _userdata, _flags, reason_code, _properties
+    ) -> None:
         """On connect callback.
         Resubscribe to all topics we were subscribed to and publish birth
         message.
@@ -292,10 +301,10 @@ class AmpioAPI:
         # pylint: disable=import-outside-toplevel
         import paho.mqtt.client as mqtt
 
-        if result_code != mqtt.CONNACK_ACCEPTED:
+        if reason_code != mqtt.CONNACK_ACCEPTED:
             _LOGGER.error(
                 "Unable to connect to the MQTT broker: %s",
-                mqtt.connack_string(result_code),
+                mqtt.connack_string(reason_code),
             )
             return
 
@@ -305,7 +314,7 @@ class AmpioAPI:
             "Connected to Ampio MQTT Server %s:%s (%s)",
             self.conf[CONF_BROKER],
             self.conf[CONF_PORT],
-            result_code,
+            reason_code,
         )
 
         # Group subscriptions to only re-subscribe once for each topic.
@@ -359,7 +368,9 @@ class AmpioAPI:
                 ),
             )
 
-    def _mqtt_on_disconnect(self, _mqttc, _userdata, result_code: int) -> None:
+    def _mqtt_on_disconnect(
+        self, _mqttc, _userdata, _disconnect_flags, reason_code, _properties
+    ) -> None:
         """Disconnected callback."""
         self.connected = False
         dispatcher_send(self.hass, AMPIO_DISCONNECTED)
@@ -367,7 +378,7 @@ class AmpioAPI:
             "Disconnected from MQTT server %s:%s (%s)",
             self.conf[CONF_BROKER],
             self.conf[CONF_PORT],
-            result_code,
+            reason_code,
         )
 
 
