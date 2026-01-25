@@ -1,57 +1,33 @@
 """Ampio Systems Platform."""
-import asyncio
-import json
 import logging
-from typing import Any, Dict, Optional
 
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_CLIENT_ID,
-    CONF_DEVICE,
-    CONF_DEVICE_CLASS,
-    CONF_FRIENDLY_NAME,
-    CONF_ICON,
-    CONF_NAME,
     CONF_PASSWORD,
     CONF_PORT,
     CONF_PROTOCOL,
     CONF_USERNAME,
     EVENT_HOMEASSISTANT_STOP,
 )
-from homeassistant.core import Event, callback
-from homeassistant.helpers import (
-    config_validation as cv,
-    device_registry as dr,
-    event,
-    template,
-)
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_registry import EntityRegistry, async_get_registry
+from homeassistant.core import Event
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .client import AmpioAPI, async_setup_discovery
 from .const import (
     AMPIO_CONNECTED,
-    AMPIO_DISCOVERY_UPDATED,
-    AMPIO_MODULE_DISCOVERY_UPDATED,
     COMPONENTS,
     CONF_BROKER,
-    CONF_STATE_TOPIC,
-    CONF_UNIQUE_ID,
     DATA_AMPIO,
     DATA_AMPIO_API,
     DATA_AMPIO_DISPATCHERS,
     DATA_AMPIO_PLATFORM_LOADED,
     PROTOCOL_311,
-    SIGNAL_ADD_ENTITIES,
 )
-from .models import AmpioModuleInfo
 
 _LOGGER = logging.getLogger(__name__)
 

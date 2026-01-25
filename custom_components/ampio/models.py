@@ -134,8 +134,6 @@ class ModuleCodes(IntEnum):
     MDOT2 = 33
 
 
-DOMAIN = "ampio"
-
 _LOGGER = logging.getLogger(__name__)
 
 PublishPayloadType = Union[str, bytes, int, float, None]

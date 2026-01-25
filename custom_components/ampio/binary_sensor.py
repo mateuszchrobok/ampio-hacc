@@ -1,7 +1,6 @@
 """Ampio Sensors."""
 import functools
 import logging
-from homeassistant.util.dt import now
 
 from homeassistant.components import binary_sensor
 from homeassistant.core import callback

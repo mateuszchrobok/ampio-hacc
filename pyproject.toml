@@ -33,10 +33,7 @@ select = ["E", "W", "F", "B", "C4"]
 # Ignore rules that trigger on existing codebase:
 # - E501: Line too long
 # - B008: Function call in default argument
-# - F401: Unused imports (re-exports in __init__.py)
-# - F811: Redefinition of unused name (DOMAIN redefined)
-# - RUF: Ruff-specific rules (task references, etc.)
-ignore = ["E501", "B008", "F401", "F811"]
+ignore = ["E501", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101"]

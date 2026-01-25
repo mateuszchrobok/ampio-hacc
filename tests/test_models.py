@@ -2,8 +2,6 @@
 
 import base64
 
-import pytest
-
 from custom_components.ampio.models import (
     DEVICE_CLASSES,
     TYPE_CODES,
