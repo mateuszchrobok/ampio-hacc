@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - run: pip install ruff
       - name: Ruff lint (custom_components)
         run: ruff check custom_components/ampio
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - run: pip install mypy voluptuous attrs paho-mqtt
       - run: mypy custom_components/ampio --ignore-missing-imports
 
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: pytest tests/ -v --cov=custom_components/ampio --cov-report=xml
       - uses: codecov/codecov-action@v4
