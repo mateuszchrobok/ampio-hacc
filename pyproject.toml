@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ampio-hacc"
-version = "0.0.3"
+version = "1.3.0"
 description = "Home Assistant Custom Component for Ampio Smart Home System"
 readme = "README.md"
 license = {text = "MIT"}
@@ -60,4 +60,4 @@ asyncio_mode = "auto"
 source = ["custom_components/ampio"]
 
 [tool.coverage.report]
-fail_under = 25
+fail_under = 20

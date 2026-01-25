@@ -1,5 +1,7 @@
 """Data validators."""
 
+from __future__ import annotations
+
 from typing import Any, TypeVar
 
 import voluptuous as vol
@@ -31,7 +33,7 @@ def string(value: Any) -> str:
     """Coerce value to string, except for None."""
     if value is None:
         raise vol.Invalid("string value is None")
-    if isinstance(value, (list, dict)):
+    if isinstance(value, list | dict):
         raise vol.Invalid("value should be a string")
 
     return str(value)

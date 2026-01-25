@@ -1,5 +1,7 @@
 """Helper to handle a set of topics to subscribe to."""
 
+from __future__ import annotations
+
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -17,7 +19,9 @@ DATA_MQTT_DEBUG_INFO = "ampio_debug_info"
 STORED_MESSAGES = 10
 
 
-def log_messages(hass: HomeAssistant, entity_id: str) -> Callable[[MessageCallbackType], MessageCallbackType]:
+def log_messages(
+    hass: HomeAssistant, entity_id: str
+) -> Callable[[MessageCallbackType], MessageCallbackType]:
     """Wrap an MQTT message callback to support message logging."""
 
     def _log_message(msg):

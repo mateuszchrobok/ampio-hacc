@@ -1,16 +1,37 @@
-"""Ampio Sensors."""
+"""Ampio Sensor platform."""
+
+from __future__ import annotations
 
 import functools
 import logging
-from datetime import timedelta
+from dataclasses import dataclass
+from typing import Any
 
-from homeassistant.components import sensor
-from homeassistant.const import CONF_DEVICE_CLASS, CONF_ICON, CONF_UNIT_OF_MEASUREMENT
+from homeassistant.components.sensor import (
+    DOMAIN as SENSOR_DOMAIN,
+)
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    CONCENTRATION_PARTS_PER_MILLION,
+    CONF_DEVICE_CLASS,
+    CONF_UNIT_OF_MEASUREMENT,
+    LIGHT_LUX,
+    PERCENTAGE,
+    SIGNAL_STRENGTH_DECIBELS,
+    EntityCategory,
+    UnitOfPressure,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType
 
 from . import discovery, subscription
 from .const import (
@@ -24,30 +45,173 @@ from .entity import AmpioEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_EXPIRE_AFTER = "expire_after"
-DEFAULT_FORCE_UPDATE = False
-DEFAULT_NAME = "Ampio Sensor"
-SCAN_INTERVAL = timedelta(seconds=15)
+
+@dataclass(frozen=True, kw_only=True)
+class AmpioSensorEntityDescription(SensorEntityDescription):
+    """Describes an Ampio sensor entity."""
+
+    # No additional fields needed - we use the standard SensorEntityDescription fields
 
 
-class AmpioSensor(AmpioEntity, RestoreEntity, Entity):
-    """Representation of Ampio Sensor."""
+# Map device class strings to SensorEntityDescription
+SENSOR_DESCRIPTIONS: dict[str, AmpioSensorEntityDescription] = {
+    "temperature": AmpioSensorEntityDescription(
+        key="temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "humidity": AmpioSensorEntityDescription(
+        key="humidity",
+        device_class=SensorDeviceClass.HUMIDITY,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "pressure": AmpioSensorEntityDescription(
+        key="pressure",
+        device_class=SensorDeviceClass.ATMOSPHERIC_PRESSURE,
+        native_unit_of_measurement=UnitOfPressure.HPA,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "illuminance": AmpioSensorEntityDescription(
+        key="illuminance",
+        device_class=SensorDeviceClass.ILLUMINANCE,
+        native_unit_of_measurement=LIGHT_LUX,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "signal_strength": AmpioSensorEntityDescription(
+        key="signal_strength",
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+        native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    "aqi": AmpioSensorEntityDescription(
+        key="aqi",
+        device_class=SensorDeviceClass.AQI,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "carbon_dioxide": AmpioSensorEntityDescription(
+        key="carbon_dioxide",
+        device_class=SensorDeviceClass.CO2,
+        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    # Energy/pulse counter sensors
+    "energy": AmpioSensorEntityDescription(
+        key="energy",
+        device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement="kWh",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    "gas": AmpioSensorEntityDescription(
+        key="gas",
+        device_class=SensorDeviceClass.GAS,
+        native_unit_of_measurement="m³",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    "water": AmpioSensorEntityDescription(
+        key="water",
+        device_class=SensorDeviceClass.WATER,
+        native_unit_of_measurement="m³",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    # Battery level for wireless modules
+    "battery": AmpioSensorEntityDescription(
+        key="battery",
+        device_class=SensorDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    # Analog input sensors (0-10V / 4-20mA)
+    "voltage": AmpioSensorEntityDescription(
+        key="voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement="V",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "current": AmpioSensorEntityDescription(
+        key="current",
+        device_class=SensorDeviceClass.CURRENT,
+        native_unit_of_measurement="mA",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    # Wind speed for METEO modules
+    "wind_speed": AmpioSensorEntityDescription(
+        key="wind_speed",
+        device_class=SensorDeviceClass.WIND_SPEED,
+        native_unit_of_measurement="m/s",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    # Precipitation for METEO modules
+    "precipitation": AmpioSensorEntityDescription(
+        key="precipitation",
+        device_class=SensorDeviceClass.PRECIPITATION,
+        native_unit_of_measurement="mm",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+}
 
-    def __init__(self, config):
+# Fallback description for unknown sensor types
+DEFAULT_SENSOR_DESCRIPTION = AmpioSensorEntityDescription(
+    key="unknown",
+    state_class=SensorStateClass.MEASUREMENT,
+)
+
+
+class AmpioSensor(AmpioEntity, RestoreEntity, SensorEntity):
+    """Representation of an Ampio Sensor."""
+
+    entity_description: AmpioSensorEntityDescription
+
+    def __init__(
+        self,
+        config: dict[str, Any],
+        description: AmpioSensorEntityDescription | None = None,
+    ) -> None:
         """Initialize the sensor."""
-        AmpioEntity.__init__(self, config)
+        super().__init__(config)
 
-    async def subscribe_topics(self):
-        """(Re)Subscribe to topics."""
+        # Get or create entity description
+        device_class_str = config.get(CONF_DEVICE_CLASS)
+        if description:
+            self.entity_description = description
+        elif device_class_str and device_class_str in SENSOR_DESCRIPTIONS:
+            self.entity_description = SENSOR_DESCRIPTIONS[device_class_str]
+        else:
+            self.entity_description = DEFAULT_SENSOR_DESCRIPTION
+
+        # Override unit if specified in config (for backwards compatibility)
+        config_unit = config.get(CONF_UNIT_OF_MEASUREMENT)
+        if config_unit and config_unit != self.entity_description.native_unit_of_measurement:
+            self._attr_native_unit_of_measurement = config_unit
+        else:
+            self._attr_native_unit_of_measurement = (
+                self.entity_description.native_unit_of_measurement
+            )
+
+        # Set device class from description
+        self._attr_device_class = self.entity_description.device_class
+        self._attr_state_class = self.entity_description.state_class
+        self._attr_entity_category = self.entity_description.entity_category
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the sensor value."""
+        return self._state
+
+    async def subscribe_topics(self) -> None:
+        """Subscribe to MQTT topics."""
 
         @callback
-        def state_message_received(msg):
-            """Handler new MQTT message."""
-            payload = msg.payload
+        def state_message_received(msg: Any) -> None:
+            """Handle new MQTT message."""
             try:
-                self._state = float(payload)
-            except ValueError:
+                self._state = float(msg.payload)
+            except (ValueError, TypeError):
                 self._state = None
+                _LOGGER.warning("Invalid sensor value: %s", msg.payload)
 
             self.async_write_ha_state()
 
@@ -63,56 +227,28 @@ class AmpioSensor(AmpioEntity, RestoreEntity, Entity):
             },
         )
 
-    async def async_added_to_hass(self):
-        """Entity added to the hass."""
+    async def async_added_to_hass(self) -> None:
+        """Restore last state on startup."""
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
-        if not last_state:
-            return
-        self._state = last_state.state
+        if last_state and last_state.state not in (None, "unknown", "unavailable"):
+            try:
+                self._state = float(last_state.state)
+            except (ValueError, TypeError):
+                pass
 
-    async def async_will_remove_from_hass(self):
+    async def async_will_remove_from_hass(self) -> None:
         """Unsubscribe when removed."""
         self._sub_state = await subscription.async_unsubscribe_topics(self.hass, self._sub_state)
 
-    @property
-    def unit_of_measurement(self):
-        """Return the unit this state is expressed in."""
-        return self._config.get(CONF_UNIT_OF_MEASUREMENT)
 
-    @property
-    def state(self):
-        """Return the state of the entity."""
-        return self._state
-
-    @property
-    def icon(self):
-        """Return the icon."""
-        return self._config.get(CONF_ICON)
-
-    @property
-    def device_class(self) -> str | None:
-        """Return the device class of the sensor."""
-        return self._config.get(CONF_DEVICE_CLASS)
-
-    @property
-    def should_poll(self):
-        """Poll the sensor to get even data stream even if ther is no change."""
-        return True
-
-    @property
-    def force_update(self) -> bool:
-        """Return True if state updates should be forced.
-
-        If True, a state change will be triggered anytime the state property is
-        updated, not just when the value changes.
-        """
-        return True
-
-
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigType, async_add_entities):
-    """Set up MQTT sensors dynamically through MQTT discovery."""
-    entities_to_create = hass.data[DATA_AMPIO][sensor.DOMAIN]
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Ampio sensors from a config entry."""
+    entities_to_create = hass.data[DATA_AMPIO][SENSOR_DOMAIN]
 
     unsub = async_dispatcher_connect(
         hass,

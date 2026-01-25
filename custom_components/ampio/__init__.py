@@ -1,127 +1,254 @@
-"""Ampio Systems Platform."""
+"""Ampio Smart Home System Integration."""
+
+from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_CLIENT_ID,
-    CONF_PASSWORD,
-    CONF_PORT,
-    CONF_PROTOCOL,
-    CONF_USERNAME,
-    EVENT_HOMEASSISTANT_STOP,
-)
-from homeassistant.core import Event, HomeAssistant
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant, ServiceCall
 
-from .client import AmpioAPI, async_setup_discovery
 from .const import (
-    AMPIO_CONNECTED,
     COMPONENTS,
-    CONF_BROKER,
     DATA_AMPIO,
-    DATA_AMPIO_API,
+    DATA_AMPIO_COORDINATOR,
     DATA_AMPIO_DISPATCHERS,
-    PROTOCOL_311,
+    DOMAIN,
 )
+from .coordinator import AmpioCoordinator
+
+if TYPE_CHECKING:
+    from homeassistant.helpers.typing import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "ampio"
+# Service names
+SERVICE_DISPLAY_TEXT = "display_text"
+SERVICE_DISPLAY_CLEAR = "display_clear"
+SERVICE_DISPLAY_ICON = "display_icon"
+SERVICE_BROADCAST_TEMPERATURE = "broadcast_temperature"
+SERVICE_SET_FLAG_TIMED = "set_flag_timed"
 
-
-VERSION_TOPIC_FROM = "ampio/from/info/version"
-VERSION_TOPIC_TO = "ampio/to/info/version"
-
-DISCOVERY_TOPIC_FROM = "ampio/from/can/dev/list"
-DISCOVERY_TOPIC_TO = "ampio/to/can/dev/list"
-
-ATTR_DEVICES = "devices"
-
-CONF_KEEPALIVE = "keepalive"
-
-PROTOCOL_31 = "3.1"
-
-DEFAULT_PORT = 1883
-DEFAULT_KEEPALIVE = 60
-DEFAULT_PROTOCOL = PROTOCOL_311
-
-
-CONFIG_SCHEMA = vol.Schema(
+# Service schemas
+SERVICE_DISPLAY_TEXT_SCHEMA = vol.Schema(
     {
-        DOMAIN: vol.All(
-            vol.Schema(
-                {
-                    vol.Optional(CONF_CLIENT_ID): cv.string,
-                    vol.Optional(CONF_KEEPALIVE, default=DEFAULT_KEEPALIVE): vol.All(
-                        vol.Coerce(int), vol.Range(min=15)
-                    ),
-                    vol.Optional(CONF_BROKER): cv.string,
-                    vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
-                    vol.Optional(CONF_USERNAME): cv.string,
-                    vol.Optional(CONF_PASSWORD): cv.string,
-                    vol.Optional(CONF_PROTOCOL, default=DEFAULT_PROTOCOL): vol.All(
-                        cv.string, vol.In([PROTOCOL_31, PROTOCOL_311])
-                    ),
-                },
-            ),
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
+        vol.Required("mac"): cv.string,
+        vol.Required("text"): cv.string,
+        vol.Optional("line", default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=4)),
+    }
 )
 
+SERVICE_DISPLAY_CLEAR_SCHEMA = vol.Schema(
+    {
+        vol.Required("mac"): cv.string,
+    }
+)
 
-async def async_setup(hass: HomeAssistant, config: ConfigType):
-    """Stub to allow setting up this component.
-    Configuration through YAML is not supported at this time.
-    """
+SERVICE_DISPLAY_ICON_SCHEMA = vol.Schema(
+    {
+        vol.Required("mac"): cv.string,
+        vol.Required("icon"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+        vol.Optional("x", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=127)),
+        vol.Optional("y", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=63)),
+    }
+)
+
+SERVICE_BROADCAST_TEMPERATURE_SCHEMA = vol.Schema(
+    {
+        vol.Required("address"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+        vol.Required("temperature"): vol.Coerce(float),
+        vol.Optional("type", default="t"): cv.string,
+    }
+)
+
+SERVICE_SET_FLAG_TIMED_SCHEMA = vol.Schema(
+    {
+        vol.Required("mac"): cv.string,
+        vol.Required("flag"): vol.All(vol.Coerce(int), vol.Range(min=1, max=255)),
+        vol.Required("value"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+        vol.Required("duration"): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+    }
+)
+
+type AmpioConfigEntry = ConfigEntry[AmpioCoordinator]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the Ampio component from YAML (not supported)."""
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Set up the Ampio component."""
-
-    ampio_data = hass.data.setdefault(DATA_AMPIO, {})
-
+async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bool:
+    """Set up Ampio from a config entry."""
+    # Initialize data storage
+    hass.data.setdefault(DATA_AMPIO, {})
     for component in COMPONENTS:
-        ampio_data.setdefault(component, [])
+        hass.data[DATA_AMPIO].setdefault(component, [])
+    hass.data[DATA_AMPIO][DATA_AMPIO_DISPATCHERS] = []
 
-    conf = CONFIG_SCHEMA({DOMAIN: dict(config_entry.data)})[DOMAIN]
+    # Create and setup coordinator
+    coordinator = AmpioCoordinator(hass, entry)
+    await coordinator.async_setup()
 
-    ampio_data[DATA_AMPIO_API] = AmpioAPI(
-        hass,
-        config_entry,
-        conf,
-    )
+    # Store coordinator in entry runtime data
+    entry.runtime_data = coordinator
+    hass.data[DATA_AMPIO][DATA_AMPIO_COORDINATOR] = coordinator
 
-    ampio_data[DATA_AMPIO_DISPATCHERS] = []
+    # Register services
+    await async_register_services(hass, coordinator)
 
-    await hass.config_entries.async_forward_entry_setups(config_entry, COMPONENTS)
+    # Forward setup to platforms
+    await hass.config_entries.async_forward_entry_setups(entry, COMPONENTS)
 
-    await ampio_data[DATA_AMPIO_API].async_connect()
+    # Handle shutdown
+    async def async_stop_ampio(_event: Event) -> None:
+        """Stop Ampio on Home Assistant shutdown."""
+        await coordinator.async_shutdown()
 
-    async def async_connected():
-        """Start discovery on connected."""
-        await async_setup_discovery(hass, conf, config_entry)
-
-    async_dispatcher_connect(hass, AMPIO_CONNECTED, async_connected)
-
-    async def async_stop_ampio(_event: Event):
-        """Stop MQTT component."""
-        await ampio_data[DATA_AMPIO_API].async_disconnect()
-
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, async_stop_ampio)
+    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, async_stop_ampio))
 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+async def async_register_services(hass: HomeAssistant, coordinator: AmpioCoordinator) -> None:
+    """Register Ampio services."""
+
+    async def handle_display_text(call: ServiceCall) -> None:
+        """Handle display_text service call."""
+        mac = call.data["mac"].upper().replace(":", "")
+        text = call.data["text"]
+        line = call.data.get("line", 1)
+
+        # Encode text for LCD display
+        # Topic: ampio/to/{mac}/lcd/text/{line}
+        topic = f"ampio/to/{mac}/lcd/text/{line}"
+        coordinator.publish(topic, text, qos=0, retain=False)
+
+    async def handle_display_clear(call: ServiceCall) -> None:
+        """Handle display_clear service call."""
+        mac = call.data["mac"].upper().replace(":", "")
+
+        # Topic: ampio/to/{mac}/lcd/clear
+        topic = f"ampio/to/{mac}/lcd/clear"
+        coordinator.publish(topic, "1", qos=0, retain=False)
+
+    async def handle_display_icon(call: ServiceCall) -> None:
+        """Handle display_icon service call."""
+        mac = call.data["mac"].upper().replace(":", "")
+        icon = call.data["icon"]
+        x = call.data.get("x", 0)
+        y = call.data.get("y", 0)
+
+        # Topic: ampio/to/{mac}/lcd/icon
+        # Payload: icon_id,x,y
+        topic = f"ampio/to/{mac}/lcd/icon"
+        payload = f"{icon},{x},{y}"
+        coordinator.publish(topic, payload, qos=0, retain=False)
+
+    async def handle_broadcast_temperature(call: ServiceCall) -> None:
+        """Handle broadcast_temperature service call.
+
+        Broadcasts temperature to the Ampio CAN network.
+        Topic: ampio/to/broadcast/{address}/{type}
+        """
+        address = call.data["address"]
+        temperature = call.data["temperature"]
+        temp_type = call.data.get("type", "t")
+
+        topic = f"ampio/to/broadcast/{address}/{temp_type}"
+        coordinator.publish(topic, f"{temperature:.1f}", qos=0, retain=False)
+
+    async def handle_set_flag_timed(call: ServiceCall) -> None:
+        """Handle set_flag_timed service call.
+
+        Sets a flag with automatic timeout using raw CAN command.
+        Raw command format: 01 00 [FLAG_MASK x4] [value] [TIME x3]
+        """
+        mac = call.data["mac"].upper().replace(":", "")
+        flag = call.data["flag"]
+        value = call.data["value"]
+        duration = call.data["duration"]
+
+        # Calculate flag mask (4 bytes, little endian)
+        flag_mask = 1 << (flag - 1)
+        mask_bytes = flag_mask.to_bytes(4, byteorder="little")
+
+        # Time in seconds as 3 bytes (little endian)
+        time_bytes = duration.to_bytes(3, byteorder="little")
+
+        # Build raw command: 01 00 [4 mask bytes] [value] [3 time bytes]
+        raw_cmd = bytes([0x01, 0x00]) + mask_bytes + bytes([value]) + time_bytes
+
+        topic = f"ampio/to/{mac}/raw"
+        coordinator.publish(topic, raw_cmd.hex(), qos=0, retain=False)
+
+    # Register all services
+    if not hass.services.has_service(DOMAIN, SERVICE_DISPLAY_TEXT):
+        hass.services.async_register(
+            DOMAIN, SERVICE_DISPLAY_TEXT, handle_display_text, schema=SERVICE_DISPLAY_TEXT_SCHEMA
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_DISPLAY_CLEAR):
+        hass.services.async_register(
+            DOMAIN, SERVICE_DISPLAY_CLEAR, handle_display_clear, schema=SERVICE_DISPLAY_CLEAR_SCHEMA
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_DISPLAY_ICON):
+        hass.services.async_register(
+            DOMAIN, SERVICE_DISPLAY_ICON, handle_display_icon, schema=SERVICE_DISPLAY_ICON_SCHEMA
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_BROADCAST_TEMPERATURE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_BROADCAST_TEMPERATURE,
+            handle_broadcast_temperature,
+            schema=SERVICE_BROADCAST_TEMPERATURE_SCHEMA,
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_FLAG_TIMED):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_FLAG_TIMED,
+            handle_set_flag_timed,
+            schema=SERVICE_SET_FLAG_TIMED_SCHEMA,
+        )
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bool:
     """Unload Ampio config entry."""
+    # Unsubscribe dispatchers
     dispatchers = hass.data[DATA_AMPIO].get(DATA_AMPIO_DISPATCHERS, [])
     for unsub_dispatcher in dispatchers:
         unsub_dispatcher()
 
-    return await hass.config_entries.async_unload_platforms(config_entry, COMPONENTS)
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, COMPONENTS)
+
+    # Shutdown coordinator
+    if entry.runtime_data:
+        await entry.runtime_data.async_shutdown()
+
+    # Clean up data and unregister services
+    if unload_ok:
+        hass.data[DATA_AMPIO].pop(DATA_AMPIO_COORDINATOR, None)
+
+        # Only unregister services if no other entries are loaded
+        remaining_entries = [
+            e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id
+        ]
+        if not remaining_entries:
+            for service in [
+                SERVICE_DISPLAY_TEXT,
+                SERVICE_DISPLAY_CLEAR,
+                SERVICE_DISPLAY_ICON,
+                SERVICE_BROADCAST_TEMPERATURE,
+                SERVICE_SET_FLAG_TIMED,
+            ]:
+                if hass.services.has_service(DOMAIN, service):
+                    hass.services.async_remove(DOMAIN, service)
+
+    return unload_ok

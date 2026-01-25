@@ -1,22 +1,159 @@
 {
-    "config": {
-      "step": {
-        "broker": {
-          "description": "Please enter the connection information of your MQTT broker.",
-          "data": {
-            "broker": "Broker",
-            "port": "[%key:common::config_flow::data::port%]",
-            "username": "[%key:common::config_flow::data::username%]",
-            "password": "[%key:common::config_flow::data::password%]",
-            "discovery": "Enable discovery"
-          }
+  "services": {
+    "display_text": {
+      "name": "Display Text",
+      "description": "Display text on an Ampio M-DOT LCD panel.",
+      "fields": {
+        "mac": {
+          "name": "MAC Address",
+          "description": "The MAC address of the M-DOT device."
+        },
+        "text": {
+          "name": "Text",
+          "description": "The text to display on the LCD."
+        },
+        "line": {
+          "name": "Line",
+          "description": "The line number to display the text on (1-4)."
         }
-      },
-      "abort": {
-        "single_instance_allowed": "Only a single configuration of MQTT is allowed."
-      },
-      "error": {
-        "cannot_connect": "Unable to connect to the broker."
+      }
+    },
+    "display_clear": {
+      "name": "Clear Display",
+      "description": "Clear the display on an Ampio M-DOT LCD panel.",
+      "fields": {
+        "mac": {
+          "name": "MAC Address",
+          "description": "The MAC address of the M-DOT device."
+        }
+      }
+    },
+    "display_icon": {
+      "name": "Display Icon",
+      "description": "Display an icon on an Ampio M-DOT LCD panel.",
+      "fields": {
+        "mac": {
+          "name": "MAC Address",
+          "description": "The MAC address of the M-DOT device."
+        },
+        "icon": {
+          "name": "Icon ID",
+          "description": "The icon ID to display."
+        },
+        "x": {
+          "name": "X Position",
+          "description": "X coordinate for the icon."
+        },
+        "y": {
+          "name": "Y Position",
+          "description": "Y coordinate for the icon."
+        }
+      }
+    },
+    "broadcast_temperature": {
+      "name": "Broadcast Temperature",
+      "description": "Broadcast a temperature value to the Ampio CAN network.",
+      "fields": {
+        "address": {
+          "name": "Broadcast Address",
+          "description": "The broadcast address on the CAN network."
+        },
+        "temperature": {
+          "name": "Temperature",
+          "description": "The temperature value to broadcast (in Celsius)."
+        },
+        "type": {
+          "name": "Temperature Type",
+          "description": "The type of temperature broadcast."
+        }
+      }
+    },
+    "set_flag_timed": {
+      "name": "Set Flag with Timer",
+      "description": "Set an Ampio flag with automatic timeout reset.",
+      "fields": {
+        "mac": {
+          "name": "MAC Address",
+          "description": "The MAC address of the Ampio module."
+        },
+        "flag": {
+          "name": "Flag Number",
+          "description": "The flag number to set."
+        },
+        "value": {
+          "name": "Value",
+          "description": "The value to set (0 or 1 for on/off, 0-255 for analog)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration in seconds before reverting to previous state."
+        }
       }
     }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "description": "Set up your Ampio system connection.",
+        "data": {
+          "broker": "MQTT Broker Host",
+          "port": "[%key:common::config_flow::data::port%]",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      },
+      "broker": {
+        "description": "Enter the connection details for your Ampio MQTT broker.",
+        "data": {
+          "broker": "MQTT Broker Host",
+          "port": "[%key:common::config_flow::data::port%]",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      },
+      "zeroconf_confirm": {
+        "description": "Do you want to set up the Ampio system at {name}?",
+        "data": {
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      },
+      "reauth_confirm": {
+        "description": "The connection to {broker} failed. Please update your credentials.",
+        "data": {
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      },
+      "reconfigure_confirm": {
+        "description": "Update the connection settings for your Ampio system.",
+        "data": {
+          "broker": "MQTT Broker Host",
+          "port": "[%key:common::config_flow::data::port%]",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+      "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]"
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "description": "Configure Ampio integration options.",
+        "data": {
+          "scan_interval": "Scan interval (seconds)",
+          "discovery_enabled": "Enable device discovery"
+        }
+      }
+    }
+  }
 }

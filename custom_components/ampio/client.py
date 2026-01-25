@@ -1,11 +1,16 @@
 """Ampio MQTT api implementation."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import re
 from itertools import groupby
 from operator import attrgetter
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import paho.mqtt.client as mqtt
 
 import voluptuous as vol
 from homeassistant.components.mqtt import Subscription
@@ -124,8 +129,6 @@ class AmpioAPI:
         conf,
     ) -> None:
         """Initialize Ampio Client."""
-        import paho.mqtt.client as mqtt  # pylint: disable=import-outside-toplevel
-
         self.hass = hass
         self.config_entry = config_entry
         self.conf = conf
@@ -287,8 +290,16 @@ class AmpioAPI:
             result, _ = await self.hass.async_add_executor_job(self._mqttc.subscribe, topic, qos)
             _raise_on_error(result)
 
-    def _mqtt_on_connect(self, _mqttc, _userdata, _flags, reason_code, _properties) -> None:
+    def _mqtt_on_connect(
+        self,
+        _mqttc: mqtt.Client,
+        _userdata: Any,
+        _flags: mqtt.ConnectFlags,
+        reason_code: mqtt.ReasonCode,
+        _properties: mqtt.Properties | None,
+    ) -> None:
         """On connect callback.
+
         Resubscribe to all topics we were subscribed to and publish birth
         message.
         """
@@ -363,7 +374,12 @@ class AmpioAPI:
             )
 
     def _mqtt_on_disconnect(
-        self, _mqttc, _userdata, _disconnect_flags, reason_code, _properties
+        self,
+        _mqttc: mqtt.Client,
+        _userdata: Any,
+        _disconnect_flags: mqtt.DisconnectFlags,
+        reason_code: mqtt.ReasonCode,
+        _properties: mqtt.Properties | None,
     ) -> None:
         """Disconnected callback."""
         self.connected = False

@@ -1,0 +1,153 @@
+# Ampio Services
+
+display_text:
+  name: Display Text
+  description: Display text on an Ampio M-DOT LCD panel.
+  fields:
+    mac:
+      name: MAC Address
+      description: The MAC address of the M-DOT device.
+      required: true
+      example: "00:11:22:33:44:55"
+      selector:
+        text:
+    text:
+      name: Text
+      description: The text to display on the LCD.
+      required: true
+      example: "Hello World"
+      selector:
+        text:
+    line:
+      name: Line
+      description: The line number to display the text on (1-4).
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 4
+          mode: slider
+
+display_clear:
+  name: Clear Display
+  description: Clear the display on an Ampio M-DOT LCD panel.
+  fields:
+    mac:
+      name: MAC Address
+      description: The MAC address of the M-DOT device.
+      required: true
+      example: "00:11:22:33:44:55"
+      selector:
+        text:
+
+display_icon:
+  name: Display Icon
+  description: Display an icon on an Ampio M-DOT LCD panel.
+  fields:
+    mac:
+      name: MAC Address
+      description: The MAC address of the M-DOT device.
+      required: true
+      example: "00:11:22:33:44:55"
+      selector:
+        text:
+    icon:
+      name: Icon ID
+      description: The icon ID to display.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    x:
+      name: X Position
+      description: X coordinate for the icon.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 127
+          mode: box
+    y:
+      name: Y Position
+      description: Y coordinate for the icon.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 63
+          mode: box
+
+broadcast_temperature:
+  name: Broadcast Temperature
+  description: Broadcast a temperature value to the Ampio CAN network.
+  fields:
+    address:
+      name: Broadcast Address
+      description: The broadcast address on the CAN network.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    temperature:
+      name: Temperature
+      description: The temperature value to broadcast (in Celsius).
+      required: true
+      selector:
+        number:
+          min: -50
+          max: 100
+          step: 0.1
+          unit_of_measurement: "°C"
+          mode: box
+    type:
+      name: Temperature Type
+      description: The type of temperature broadcast (t for temperature).
+      default: "t"
+      selector:
+        text:
+
+set_flag_timed:
+  name: Set Flag with Timer
+  description: Set an Ampio flag with automatic timeout reset.
+  fields:
+    mac:
+      name: MAC Address
+      description: The MAC address of the Ampio module.
+      required: true
+      example: "00:11:22:33:44:55"
+      selector:
+        text:
+    flag:
+      name: Flag Number
+      description: The flag number to set.
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 255
+          mode: box
+    value:
+      name: Value
+      description: The value to set (0 or 1 for on/off, 0-255 for analog).
+      required: true
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    duration:
+      name: Duration
+      description: Duration in seconds before reverting to previous state.
+      required: true
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 65535
+          unit_of_measurement: "s"
+          mode: box

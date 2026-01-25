@@ -1,5 +1,7 @@
 """Module and entity discovery."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -55,8 +57,8 @@ async def async_start(hass: HomeAssistant, config_entry=None) -> bool:
         _LOGGER.debug("Version %s", msg.payload)
         try:
             data = json.loads(msg.payload)
-        except json.JSONDecodeError:
-            _LOGGER.error("Unable to decode Ampio MQTT Server version")
+        except (json.JSONDecodeError, ValueError, TypeError) as err:
+            _LOGGER.error("Unable to decode Ampio MQTT Server version: %s", err)
             return
         version = data.get(ATTR_VERSION, "N/A")
         device_registry = dr.async_get(hass)
@@ -81,7 +83,7 @@ async def async_start(hass: HomeAssistant, config_entry=None) -> bool:
         """Process device list info message."""
         try:
             payload = json.loads(msg.payload)
-        except ValueError as err:
+        except (json.JSONDecodeError, ValueError, TypeError) as err:
             _LOGGER.error("Unable to parse JSON module list: %s", err)
             return
 
@@ -114,8 +116,8 @@ async def async_start(hass: HomeAssistant, config_entry=None) -> bool:
 
         try:
             payload = json.loads(msg.payload)
-        except ValueError as err:
-            _LOGGER.error("Unable to parse JSON module names: %s", err)
+        except (json.JSONDecodeError, ValueError, TypeError) as err:
+            _LOGGER.error("Unable to parse JSON module names for %s: %s", mac, err)
             return
 
         module.names = ItemName.from_topic_payload(payload)

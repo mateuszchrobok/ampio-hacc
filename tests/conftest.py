@@ -58,6 +58,11 @@ _ha_mock.helpers.typing = MagicMock()
 _ha_mock.helpers.entity_registry = MagicMock()
 _ha_mock.helpers.entity = MagicMock()
 _ha_mock.helpers.restore_state = MagicMock()
+_ha_mock.helpers.update_coordinator = MagicMock()
+_ha_mock.helpers.update_coordinator.DataUpdateCoordinator = MagicMock()
+_ha_mock.helpers.update_coordinator.CoordinatorEntity = MagicMock()
+_ha_mock.helpers.entity_platform = MagicMock()
+_ha_mock.helpers.entity_platform.AddEntitiesCallback = MagicMock()
 
 # Loader
 _ha_mock.loader = MagicMock()
@@ -128,6 +133,36 @@ _switch_mock.DOMAIN = "switch"
 _switch_mock.SwitchEntity = MagicMock()
 _components_mock.switch = _switch_mock
 
+# Climate component
+_climate_mock = MagicMock()
+_climate_mock.DOMAIN = "climate"
+_climate_mock.ClimateEntity = MagicMock()
+_climate_mock.ClimateEntityFeature = MagicMock()
+_climate_mock.ClimateEntityFeature.TARGET_TEMPERATURE = 1
+_climate_mock.ClimateEntityFeature.PRESET_MODE = 16
+_climate_mock.HVACMode = MagicMock()
+_climate_mock.HVACMode.OFF = "off"
+_climate_mock.HVACMode.HEAT = "heat"
+_climate_mock.HVACMode.AUTO = "auto"
+_climate_mock.HVACAction = MagicMock()
+_climate_mock.HVACAction.OFF = "off"
+_climate_mock.HVACAction.HEATING = "heating"
+_climate_mock.HVACAction.IDLE = "idle"
+_climate_mock.ATTR_TEMPERATURE = "temperature"
+_climate_mock.ATTR_HVAC_MODE = "hvac_mode"
+_components_mock.climate = _climate_mock
+
+# Event component
+_event_mock = MagicMock()
+_event_mock.DOMAIN = "event"
+_event_mock.EventEntity = MagicMock()
+_event_mock.EventDeviceClass = MagicMock()
+_event_mock.EventDeviceClass.BUTTON = "button"
+_event_mock.EventDeviceClass.DOORBELL = "doorbell"
+_event_mock.EventDeviceClass.MOTION = "motion"
+_event_mock.EventEntityDescription = MagicMock()
+_components_mock.event = _event_mock
+
 # MQTT component
 _mqtt_mock = MagicMock()
 _mqtt_mock.Subscription = MagicMock()
@@ -150,6 +185,8 @@ sys.modules["homeassistant.helpers.typing"] = _ha_mock.helpers.typing
 sys.modules["homeassistant.helpers.entity_registry"] = _ha_mock.helpers.entity_registry
 sys.modules["homeassistant.helpers.entity"] = _ha_mock.helpers.entity
 sys.modules["homeassistant.helpers.restore_state"] = _ha_mock.helpers.restore_state
+sys.modules["homeassistant.helpers.update_coordinator"] = _ha_mock.helpers.update_coordinator
+sys.modules["homeassistant.helpers.entity_platform"] = _ha_mock.helpers.entity_platform
 sys.modules["homeassistant.loader"] = _ha_mock.loader
 sys.modules["homeassistant.util"] = _ha_mock.util
 sys.modules["homeassistant.util.dt"] = _ha_mock.util.dt
@@ -161,6 +198,8 @@ sys.modules["homeassistant.components.cover"] = _cover_mock
 sys.modules["homeassistant.components.light"] = _light_mock
 sys.modules["homeassistant.components.sensor"] = _sensor_mock
 sys.modules["homeassistant.components.switch"] = _switch_mock
+sys.modules["homeassistant.components.climate"] = _climate_mock
+sys.modules["homeassistant.components.event"] = _event_mock
 sys.modules["homeassistant.components.mqtt"] = _mqtt_mock
 sys.modules["homeassistant.components.mqtt.models"] = _mqtt_mock.models
 
@@ -209,3 +248,6 @@ def sample_description_payload():
             },
         ],
     }
+
+
+# Import additional fixtures from fixtures module
