@@ -1,38 +1,19 @@
-"""Tests for models module - standalone utility function tests."""
+"""Tests for models module."""
 
 import base64
-import sys
-from unittest.mock import MagicMock
 
 import pytest
 
-
-# Mock homeassistant modules before any imports
-sys.modules["homeassistant"] = MagicMock()
-sys.modules["homeassistant.const"] = MagicMock()
-sys.modules["homeassistant.const"].CONF_DEVICE = "device"
-sys.modules["homeassistant.const"].CONF_DEVICE_CLASS = "device_class"
-sys.modules["homeassistant.const"].CONF_FRIENDLY_NAME = "friendly_name"
-sys.modules["homeassistant.const"].CONF_ICON = "icon"
-sys.modules["homeassistant.const"].CONF_NAME = "name"
-sys.modules["homeassistant.const"].CONF_UNIT_OF_MEASUREMENT = "unit_of_measurement"
-sys.modules["homeassistant.helpers"] = MagicMock()
-sys.modules["homeassistant.helpers.device_registry"] = MagicMock()
-sys.modules["homeassistant.helpers.device_registry"].CONNECTION_NETWORK_MAC = "mac"
-
-
-# Test base64 encode/decode functions directly
-def base64decode(value: str):
-    """Decode base64 string."""
-    try:
-        return base64.b64decode(value).decode("utf-8").strip()
-    except UnicodeDecodeError:
-        return base64.b64decode(value).decode("cp1254").strip()
-
-
-def base64encode(value: str):
-    """Encode base64 string."""
-    return base64.b64encode(value.encode("utf-8"))
+from custom_components.ampio.models import (
+    DEVICE_CLASSES,
+    TYPE_CODES,
+    IndexIntData,
+    ItemTypes,
+    Message,
+    base64decode,
+    base64encode,
+    extract_index_from_topic,
+)
 
 
 class TestBase64Decode:
@@ -68,17 +49,12 @@ class TestDeviceClasses:
 
     def test_binary_sensor_classes(self):
         """Test binary sensor device classes."""
-        # Import after mocking
-        from custom_components.ampio.models import DEVICE_CLASSES
-
         assert DEVICE_CLASSES["D"] == "door"
         assert DEVICE_CLASSES["W"] == "window"
         assert DEVICE_CLASSES["M"] == "motion"
 
     def test_sensor_classes(self):
         """Test sensor device classes."""
-        from custom_components.ampio.models import DEVICE_CLASSES
-
         assert DEVICE_CLASSES["T"] == "temperature"
         assert DEVICE_CLASSES["H"] == "humidity"
         assert DEVICE_CLASSES["PS"] == "pressure"
@@ -89,8 +65,6 @@ class TestTypeCodes:
 
     def test_module_codes(self):
         """Test module type codes."""
-        from custom_components.ampio.models import TYPE_CODES
-
         assert TYPE_CODES[44] == "MSENS"
         assert TYPE_CODES[3] == "MROL-4s"
         assert TYPE_CODES[5] == "MDIM-8s"
@@ -102,8 +76,6 @@ class TestItemTypes:
 
     def test_item_types_values(self):
         """Test ItemTypes enum values."""
-        from custom_components.ampio.models import ItemTypes
-
         assert ItemTypes.Temperature.value == "t"
         assert ItemTypes.BinaryFlag.value == "f"
         assert ItemTypes.BinaryInput.value == "i"
@@ -117,15 +89,11 @@ class TestExtractIndexFromTopic:
 
     def test_extract_valid_index(self):
         """Test extracting valid index from topic."""
-        from custom_components.ampio.models import extract_index_from_topic
-
         assert extract_index_from_topic("ampio/from/1B88/state/t/1") == 1
         assert extract_index_from_topic("ampio/from/AABB/state/o/5") == 5
 
     def test_extract_invalid_index(self):
         """Test extracting invalid index returns None."""
-        from custom_components.ampio.models import extract_index_from_topic
-
         assert extract_index_from_topic("ampio/from/1B88/state/t/invalid") is None
 
 
@@ -134,8 +102,6 @@ class TestMessage:
 
     def test_message_creation(self):
         """Test creating a Message."""
-        from custom_components.ampio.models import Message
-
         msg = Message(
             topic="test/topic",
             payload="test_payload",
@@ -149,8 +115,6 @@ class TestMessage:
 
     def test_message_with_defaults(self):
         """Test Message with default values."""
-        from custom_components.ampio.models import Message
-
         msg = Message(
             topic="test",
             payload="data",
@@ -159,3 +123,42 @@ class TestMessage:
         )
         assert msg.subscribed_topic is None
         assert msg.timestamp is None
+
+
+class TestIndexIntData:
+    """Tests for IndexIntData class."""
+
+    def test_from_msg_valid(self):
+        """Test creating IndexIntData from valid message."""
+        msg = Message(
+            topic="ampio/from/1B88/state/t/5",
+            payload="42",
+            qos=0,
+            retain=False,
+        )
+        result = IndexIntData.from_msg(msg)
+        assert result is not None
+        assert result.index == 5
+        assert result.value == 42
+
+    def test_from_msg_invalid_index(self):
+        """Test from_msg with invalid index returns None."""
+        msg = Message(
+            topic="ampio/from/1B88/state/t/invalid",
+            payload="42",
+            qos=0,
+            retain=False,
+        )
+        result = IndexIntData.from_msg(msg)
+        assert result is None
+
+    def test_from_msg_invalid_payload(self):
+        """Test from_msg with invalid payload returns None."""
+        msg = Message(
+            topic="ampio/from/1B88/state/t/5",
+            payload="not_a_number",
+            qos=0,
+            retain=False,
+        )
+        result = IndexIntData.from_msg(msg)
+        assert result is None

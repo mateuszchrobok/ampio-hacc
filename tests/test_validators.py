@@ -1,20 +1,8 @@
-"""Tests for validators module - standalone tests without Home Assistant."""
-
-import sys
-from unittest.mock import MagicMock
+"""Tests for validators module."""
 
 import pytest
 import voluptuous as vol
 
-
-# Mock homeassistant modules before importing validators
-sys.modules["homeassistant"] = MagicMock()
-sys.modules["homeassistant.const"] = MagicMock()
-sys.modules["homeassistant.helpers"] = MagicMock()
-sys.modules["homeassistant.helpers.device_registry"] = MagicMock()
-
-
-# Import the validator functions directly (validators.py only needs voluptuous)
 from custom_components.ampio.validators import (
     ensure_list,
     string,
