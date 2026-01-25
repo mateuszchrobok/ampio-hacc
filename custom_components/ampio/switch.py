@@ -4,9 +4,9 @@ import functools
 import logging
 
 from homeassistant.components import switch
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.helpers.typing import ConfigType
 
 from . import discovery, subscription
 from .client import async_publish
@@ -75,7 +75,7 @@ class AmpioSwitch(AmpioEntity, switch.SwitchEntity):
         async_publish(self.hass, self._config[CONF_COMMAND_TOPIC], 1, 0, False)
 
 
-async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][switch.DOMAIN]
 

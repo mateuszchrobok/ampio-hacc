@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Optional
 
 import attr
 
-from homeassistant.helpers.typing import HomeAssistantType
+from homeassistant.core import HomeAssistant
 from homeassistant.loader import bind_hass
 
 from . import client
@@ -19,7 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 class EntitySubscription:
     """Class to hold data about an active entity topic subscription."""
 
-    hass = attr.ib(type=HomeAssistantType)
+    hass = attr.ib(type=HomeAssistant)
     topic = attr.ib(type=str)
     message_callback = attr.ib(type=MessageCallbackType)
     unsubscribe_callback = attr.ib(type=Optional[Callable[[], None]])
@@ -56,7 +56,7 @@ class EntitySubscription:
 
 @bind_hass
 async def async_subscribe_topics(
-    hass: HomeAssistantType,
+    hass: HomeAssistant,
     new_state: Optional[Dict[str, EntitySubscription]],
     topics: Dict[str, Any],
 ):
@@ -95,6 +95,6 @@ async def async_subscribe_topics(
 
 
 @bind_hass
-async def async_unsubscribe_topics(hass: HomeAssistantType, sub_state: dict):
+async def async_unsubscribe_topics(hass: HomeAssistant, sub_state: dict):
     """Unsubscribe from all MQTT topics managed by async_subscribe_topics."""
     return await async_subscribe_topics(hass, sub_state, {})

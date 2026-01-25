@@ -12,9 +12,9 @@ from homeassistant.components.light import (
     SUPPORT_COLOR,
     SUPPORT_WHITE_VALUE,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.color as color_util
 
 from . import discovery, subscription
@@ -263,7 +263,7 @@ class AmpioLight(AmpioEntity, light.LightEntity):
             )
 
 
-async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][light.DOMAIN]
 

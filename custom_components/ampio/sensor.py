@@ -7,11 +7,11 @@ from typing import Optional
 
 from homeassistant.components import sensor
 from homeassistant.const import CONF_DEVICE_CLASS, CONF_ICON, CONF_UNIT_OF_MEASUREMENT
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType, HomeAssistantType
+from homeassistant.helpers.typing import ConfigType
 
 from . import discovery, subscription
 from .const import (
@@ -111,7 +111,7 @@ class AmpioSensor(AmpioEntity, RestoreEntity, Entity):
         return True
 
 
-async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigType, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigType, async_add_entities):
     """Set up MQTT sensors dynamically through MQTT discovery."""
     entities_to_create = hass.data[DATA_AMPIO][sensor.DOMAIN]
 

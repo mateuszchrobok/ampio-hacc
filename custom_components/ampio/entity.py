@@ -11,9 +11,8 @@ from homeassistant.const import (
     CONF_NAME,
 )
 from homeassistant.core import Event
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_registry import EntityRegistry, async_get_registry
 from homeassistant.helpers.typing import ConfigType
 
 
@@ -78,7 +77,7 @@ class AmpioEntity(Entity):
         await self.subscribe_topics()
 
         # Update name with configured if None
-        entity_registry: EntityRegistry = await async_get_registry(self.hass)
+        entity_registry = er.async_get(self.hass)
         if self.registry_entry.name is None:
             entity_registry.async_update_entity(
                 self.entity_id, name=self._config[CONF_FRIENDLY_NAME]
@@ -135,7 +134,7 @@ class AmpioModuleDiscoveryUpdate(Entity):
             data = _event.data
             if data["action"] == "update":
                 device_id = data["device_id"]
-                device_registry = await self.hass.helpers.device_registry.async_get_registry()
+                device_registry = dr.async_get(self.hass)
                 device_config = device_registry.async_get(device_id)
                 self._discovery_update(device_config)
 

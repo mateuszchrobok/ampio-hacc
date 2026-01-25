@@ -7,11 +7,10 @@ import re
 from typing import Any, Callable, Dict, List
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback
-import homeassistant.helpers.device_registry as dr
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.typing import HomeAssistantType
 
 from . import client as ampio, subscription
 from .const import (
@@ -45,7 +44,7 @@ MAC_FROM_TOPIC_RE = re.compile(r"^ampio/from/(?P<mac>.*)/.*$")
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_start(hass: HomeAssistantType, config_entry=None) -> bool:
+async def async_start(hass: HomeAssistant, config_entry=None) -> bool:
     """Start Ampio discovery."""
     topics = {}
 
@@ -59,7 +58,7 @@ async def async_start(hass: HomeAssistantType, config_entry=None) -> bool:
             _LOGGER.error("Unable to decode Ampio MQTT Server version")
             return
         version = data.get(ATTR_VERSION, "N/A")
-        device_registry = await hass.helpers.device_registry.async_get_registry()
+        device_registry = dr.async_get(hass)
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             connections={(CONNECTION_NETWORK_MAC, str("ampio-mqtt"))},
@@ -163,7 +162,7 @@ async def async_start(hass: HomeAssistantType, config_entry=None) -> bool:
 
 
 @callback
-async def async_stop(hass: HomeAssistantType) -> bool:
+async def async_stop(hass: HomeAssistant) -> bool:
     """Stop Ampio MQTT Discovery."""
     hass.data[DISCOVERY_UNSUBSCRIBE] = await subscription.async_unsubscribe_topics(
         hass, hass.data[DISCOVERY_UNSUBSCRIBE]
@@ -172,10 +171,10 @@ async def async_stop(hass: HomeAssistantType) -> bool:
 
 @callback
 async def async_setup_device_registry(
-    hass: HomeAssistantType, entry: ConfigEntry, device_info: AmpioModuleInfo
+    hass: HomeAssistant, entry: ConfigEntry, device_info: AmpioModuleInfo
 ):
     """Set up device registry feature for a particular config entry."""
-    device_registry = await dr.async_get_registry(hass)
+    device_registry = dr.async_get(hass)
     return device_registry.async_get_or_create(
         config_entry_id=entry.entry_id, **device_info.as_hass_device()
     )
@@ -194,7 +193,7 @@ async def async_add_entities(
     entities.clear()
 
 
-async def async_load_entities(hass: HomeAssistantType) -> None:
+async def async_load_entities(hass: HomeAssistant) -> None:
     """Load entities after integration was setup."""
     to_setup = hass.data[DATA_AMPIO][DATA_AMPIO_PLATFORM_LOADED]
     results = await asyncio.gather(*to_setup, return_exceptions=True)
