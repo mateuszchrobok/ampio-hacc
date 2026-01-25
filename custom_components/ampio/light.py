@@ -35,7 +35,7 @@ from .const import (
 )
 from .entity import AmpioEntity
 
-PLATFORM_SCHEMA = {}
+PLATFORM_SCHEMA: dict[str, object] = {}
 
 _LOGGER = logging.getLogger(__name__)
 

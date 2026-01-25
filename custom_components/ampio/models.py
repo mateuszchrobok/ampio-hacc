@@ -180,8 +180,8 @@ class IndexIntData:
             return None
 
         try:
-            value = int(msg.payload)
-        except ValueError:
+            value = int(msg.payload)  # type: ignore[arg-type]
+        except (ValueError, TypeError):
             _LOGGER.error("Unable to parse data message tp ind: %s", msg.payload)
             return None
         return cls(index, value)
@@ -257,10 +257,10 @@ class ItemName:
         return None
 
     @classmethod
-    def from_topic_payload(cls, payload: dict) -> list[ItemName]:
+    def from_topic_payload(cls, payload: dict) -> dict[str, dict[int, ItemName]]:
         """Read from topic payload."""
-        names: dict[str, int | dict] = AMPIO_DESCRIPTIONS_SCHEMA(payload)
-        result = {}
+        names: dict[str, Any] = AMPIO_DESCRIPTIONS_SCHEMA(payload)
+        result: dict[str, dict[int, ItemName]] = {}
         for name in names[ATTR_D]:
             name_data = name[ATTR_D]
             name_type = name[ATTR_T]
@@ -275,8 +275,8 @@ class ItemName:
 class AmpioModuleInfo:
     """Ampio Module Information."""
 
-    mac = attr.ib(type=str, converter=str.upper)
-    user_mac = attr.ib(type=str, converter=str.upper)
+    mac = attr.ib(type=str, converter=lambda s: s.upper())
+    user_mac = attr.ib(type=str, converter=lambda s: s.upper())
     code = attr.ib(type=int)
     pcb = attr.ib(type=int)
     software = attr.ib(type=int)
@@ -290,9 +290,9 @@ class AmpioModuleInfo:
     flags = attr.ib(type=int)
     name = attr.ib(type=str, converter=base64decode)
 
-    names = attr.ib(factory=dict)
-    configs = attr.ib(factory=dict)
-    unique_ids = attr.ib(factory=set)
+    names: dict[str, Any] = attr.ib(factory=dict)
+    configs: dict[str, list[Any]] = attr.ib(factory=dict)
+    unique_ids: set[str] = attr.ib(factory=set)
 
     def update_configs(self) -> None:
         """Update the config data for entities."""
@@ -311,7 +311,7 @@ class AmpioModuleInfo:
                 self.unique_ids.add(data.unique_id)
 
     @property
-    def part_number(self) -> str:
+    def part_number(self) -> str | int:
         """Return module part number (code)."""
         return TYPE_CODES.get(self.code, self.code)
 
@@ -975,11 +975,11 @@ class AmpioSatelConfig(AmpioConfig):
     @classmethod
     def from_ampio_device(cls, ampio_device: AmpioModuleInfo):
         """Create alarm config from ampio device."""
-        away = set()
-        home = set()
-        items: dict[int, ItemName] = ampio_device.names.get(ItemTypes.AnalogOutput, {}).items()
+        away: set[int] = set()
+        home: set[int] = set()
+        items: dict[int, ItemName] = ampio_device.names.get(ItemTypes.AnalogOutput, {})
         mac = ampio_device.user_mac
-        for index, item in items:
+        for index, item in items.items():
             if item.prefix in ("A", "B", None):  # Away or Both or Not defined
                 away.add(index)
             if item.prefix in ("H", "B"):  # Home or Both

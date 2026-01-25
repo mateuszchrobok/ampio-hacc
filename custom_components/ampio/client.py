@@ -131,7 +131,7 @@ class AmpioAPI:
         self.conf = conf
         self.subscriptions: list[Subscription] = []
         self.connected = False
-        self._mqttc: mqtt.Client = None
+        self._mqttc: mqtt.Client | None = None
         self._paho_lock = asyncio.Lock()
 
         self.init_client()
@@ -189,6 +189,7 @@ class AmpioAPI:
         self, topic: str, payload: PublishPayloadType, qos: int, retain: bool
     ) -> None:
         """Publish MQTT message."""
+        assert self._mqttc is not None
         async with self._paho_lock:
             _LOGGER.debug("Transmitting message on %s: %s", topic, payload)
             await self.hass.async_add_executor_job(self._mqttc.publish, topic, payload, qos, retain)
@@ -198,6 +199,7 @@ class AmpioAPI:
         # pylint: disable=import-outside-toplevel
         import paho.mqtt.client as mqtt
 
+        assert self._mqttc is not None
         result: int | None = None
         try:
             result = await self.hass.async_add_executor_job(
@@ -218,10 +220,13 @@ class AmpioAPI:
 
     async def async_disconnect(self):
         """Stop MQTT Client."""
+        if self._mqttc is None:
+            return
 
         def stop():
             """Stop the MQTT Client."""
             # Do not disconnect, we want the broker to always publish will
+            assert self._mqttc is not None
             self._mqttc.loop_stop()
 
         await self.hass.async_add_executor_job(stop)
@@ -267,6 +272,7 @@ class AmpioAPI:
         """Unsubscribe from a topic.
         This method is a coroutine.
         """
+        assert self._mqttc is not None
         _LOGGER.debug("Unsubscribing from %s", topic)
         async with self._paho_lock:
             result, _ = await self.hass.async_add_executor_job(self._mqttc.unsubscribe, topic)
@@ -274,6 +280,7 @@ class AmpioAPI:
 
     async def _async_perform_subscription(self, topic: str, qos: int) -> None:
         """Perform a paho-mqtt subscription."""
+        assert self._mqttc is not None
         _LOGGER.debug("Subscribing to %s", topic)
 
         async with self._paho_lock:
