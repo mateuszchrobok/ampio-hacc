@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2025-01-26
+
+### Fixed
+- **OptionsFlow config_entry Error**: Fixed `AttributeError: property 'config_entry' of 'AmpioOptionsFlow' object has no setter` in Home Assistant 2024.1+
+- **Alarm State Constants**: Fixed `ImportError: cannot import name 'STATE_ALARM_ARMED_AWAY'` by migrating to `AlarmControlPanelState` enum
+
 ## [1.4.0] - 2025-01-25
 
 ### Added
