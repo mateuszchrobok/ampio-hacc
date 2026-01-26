@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2025-01-26
+
+### Fixed
+- **CI/CD Linting Errors**: Fixed ruff and mypy errors
+  - Removed duplicate `Callable` import in client.py
+  - Fixed import sorting in alarm_control_panel.py
+  - Added noqa comment for intentional TypeAlias usage (Python 3.11 compat)
+
 ## [1.4.2] - 2025-01-26
 
 ### Fixed

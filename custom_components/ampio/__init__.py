@@ -73,7 +73,7 @@ SERVICE_SET_FLAG_TIMED_SCHEMA = vol.Schema(
     }
 )
 
-AmpioConfigEntry: TypeAlias = ConfigEntry[AmpioCoordinator]
+AmpioConfigEntry: TypeAlias = ConfigEntry[AmpioCoordinator]  # noqa: UP040 - Python 3.11 compat
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
