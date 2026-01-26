@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2025-01-26
+
+### Fixed
+- **Python 3.11 Compatibility**: Changed `type X = Y` syntax to `TypeAlias` for Python 3.11 support
+- **Internal HA Import Dependency**: Replaced `homeassistant.components.mqtt.Subscription` import with local dataclass to avoid breaking on HA internal changes
+
 ## [1.4.1] - 2025-01-26
 
 ### Fixed
