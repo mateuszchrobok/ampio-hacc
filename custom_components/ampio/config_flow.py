@@ -63,7 +63,7 @@ class AmpioConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> AmpioOptionsFlow:
         """Get the options flow for this handler."""
-        return AmpioOptionsFlow(config_entry)
+        return AmpioOptionsFlow()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle a flow initialized by the user."""
@@ -263,10 +263,6 @@ class AmpioConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
 
 class AmpioOptionsFlow(OptionsFlow):
     """Handle Ampio options."""
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
