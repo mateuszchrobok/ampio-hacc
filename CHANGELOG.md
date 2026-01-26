@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.6] - 2025-01-26
+
+### Fixed
+- **Device Discovery Schema**: Made optional device fields truly optional with defaults
+  - Fields `pcb`, `protocol`, `date_prod`, `i`, `o`, `a`, `au`, `t`, `f` now default to 0 if missing
+  - Fixes "required key not provided @ data['devices'][0]['au']" error for devices without all fields
+
 ## [1.4.5] - 2025-01-26
 
 ### Fixed
