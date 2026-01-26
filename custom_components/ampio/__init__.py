@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -73,7 +73,7 @@ SERVICE_SET_FLAG_TIMED_SCHEMA = vol.Schema(
     }
 )
 
-type AmpioConfigEntry = ConfigEntry[AmpioCoordinator]
+AmpioConfigEntry: TypeAlias = ConfigEntry[AmpioCoordinator]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

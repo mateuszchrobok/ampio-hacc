@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections.abc import Callable
+from dataclasses import dataclass
 from itertools import groupby
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any
@@ -13,8 +15,6 @@ if TYPE_CHECKING:
     import paho.mqtt.client as mqtt
 
 import voluptuous as vol
-from homeassistant.components.mqtt import Subscription
-from homeassistant.components.mqtt.models import MessageCallbackType
 from homeassistant.const import CONF_CLIENT_ID, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import Callable, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -38,6 +38,25 @@ from .const import (
     PROTOCOL_311,
 )
 from .models import Message, PublishPayloadType
+
+# Local type definitions (avoid dependency on HA internal MQTT imports)
+MessageCallbackType = Callable[[Any], None]
+
+
+@dataclass(frozen=True)
+class Subscription:
+    """Local subscription data class.
+
+    Replaces homeassistant.components.mqtt.Subscription to avoid
+    dependency on HA internal MQTT component structure.
+    """
+
+    topic: str
+    is_active: Callable[[], bool]
+    job: MessageCallbackType
+    qos: int
+    encoding: str | None
+
 
 # ampio/from/1B88/description
 MAC_FROM_TOPIC_RE = re.compile(r"^ampio/from/(?P<mac>.*)/.*$")
