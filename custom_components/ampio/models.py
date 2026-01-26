@@ -143,6 +143,8 @@ TYPE_CODES: dict[int, str] = {
     # Climate/Heating
     22: "MRT-16s",
     23: "MRT-s",
+    # RUPS - Relay Unit Power Sockets
+    24: "RUPS",
     # Integration modules
     25: "MCON",
     28: "MCON-232-s",
@@ -175,6 +177,7 @@ TYPE_CODES: dict[int, str] = {
     53: "MALARM-8s",
     54: "MAV-AMP-s",
     55: "MRDN-5s",
+    69: "MKIN-MULTI",  # Multi-function module (Kinetic/Chorus/IAQ/Rekuperator)
     # Wireless
     56: "WL-REL-2p",
     57: "WL-REL-ROL1p",
@@ -1414,6 +1417,96 @@ class MAVAMPsModuleInfo(AmpioModuleInfo):
 
 
 # ============================================================================
+# RUPS - RELAY UNIT POWER SOCKETS (Type 24)
+# ============================================================================
+
+
+class RUPSModuleInfo(AmpioModuleInfo):
+    """RUPS Ampio module information - Relay Unit Power Sockets.
+
+    Handles 230V power socket relay units.
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration."""
+        super().update_configs()
+
+        # Binary outputs as switches (power sockets)
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            if item.device_class == "light":
+                light_data = AmpioLightConfig.from_ampio_device(self, item, index)
+                if light_data and light_data.unique_id:
+                    self.configs["light"].append(light_data.config)
+                    self.unique_ids.add(light_data.unique_id)
+            else:
+                switch_data = AmpioSwitchConfig.from_ampio_device(self, item, index)
+                if switch_data and switch_data.unique_id:
+                    self.configs["switch"].append(switch_data.config)
+                    self.unique_ids.add(switch_data.unique_id)
+
+        # Binary inputs as binary sensors
+        for index, item in self.names.get(ItemTypes.BinaryInput, {}).items():
+            binary_data = AmpioBinarySensorConfig.from_ampio_device(self, item, index)
+            if binary_data and binary_data.unique_id:
+                self.configs["binary_sensor"].append(binary_data.config)
+                self.unique_ids.add(binary_data.unique_id)
+
+
+# ============================================================================
+# MKIN-MULTI - MULTI-FUNCTION MODULE (Type 69)
+# ============================================================================
+
+
+class MKINMULTIModuleInfo(AmpioModuleInfo):
+    """MKIN-MULTI Ampio module information - Multi-function module.
+
+    Handles multi-function modules that may include:
+    - Kinetic buttons
+    - Chorus audio
+    - IAQ sensors
+    - Rekuperator control
+    """
+
+    def update_configs(self) -> None:
+        """Update module specific configuration with auto-detection."""
+        super().update_configs()
+
+        # Binary inputs as binary sensors (kinetic buttons, etc.)
+        for index, item in self.names.get(ItemTypes.BinaryInput, {}).items():
+            binary_data = AmpioBinarySensorConfig.from_ampio_device(self, item, index)
+            if binary_data and binary_data.unique_id:
+                self.configs["binary_sensor"].append(binary_data.config)
+                self.unique_ids.add(binary_data.unique_id)
+
+        # Binary outputs as switches
+        for index, item in self.names.get(ItemTypes.BinaryOutput, {}).items():
+            if item.device_class == "light":
+                light_data = AmpioLightConfig.from_ampio_device(self, item, index)
+                if light_data and light_data.unique_id:
+                    self.configs["light"].append(light_data.config)
+                    self.unique_ids.add(light_data.unique_id)
+            else:
+                switch_data = AmpioSwitchConfig.from_ampio_device(self, item, index)
+                if switch_data and switch_data.unique_id:
+                    self.configs["switch"].append(switch_data.config)
+                    self.unique_ids.add(switch_data.unique_id)
+
+        # Temperature sensors
+        for index, item in self.names.get(ItemTypes.Temperature, {}).items():
+            sensor_data = AmpioTempSensorConfig.from_ampio_device(self, item, index)
+            if sensor_data and sensor_data.unique_id:
+                self.configs["sensor"].append(sensor_data.config)
+                self.unique_ids.add(sensor_data.unique_id)
+
+        # Analog inputs as sensors (IAQ, etc.)
+        for index, item in self.names.get(ItemTypes.AnalogInput, {}).items():
+            analog_data = AmpioAnalogInputSensorConfig.from_ampio_device(self, item, index)
+            if analog_data and analog_data.unique_id:
+                self.configs["sensor"].append(analog_data.config)
+                self.unique_ids.add(analog_data.unique_id)
+
+
+# ============================================================================
 # GENERIC FALLBACK
 # ============================================================================
 
@@ -1495,6 +1588,8 @@ CLASS_FACTORY: dict[int, type[AmpioModuleInfo]] = {
     # Climate/Heating
     22: MRT16sModuleInfo,
     23: MRTsModuleInfo,
+    # RUPS - Relay Unit Power Sockets
+    24: RUPSModuleInfo,
     # Integration modules
     25: MCONModuleInfo,
     28: MCON232sModuleInfo,
@@ -1526,6 +1621,7 @@ CLASS_FACTORY: dict[int, type[AmpioModuleInfo]] = {
     53: MALARM8sModuleInfo,
     54: MAVAMPsModuleInfo,
     55: MRDN5sModuleInfo,
+    69: MKINMULTIModuleInfo,
     # Wireless
     56: WLREL2pModuleInfo,
     57: WLRELROL1pModuleInfo,

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.5] - 2025-01-26
+
+### Fixed
+- **via_device Warning**: Create MQTT Server device before module devices to prevent warning about via_device referencing non-existent device
+- **Unknown Module Types**: Added support for module types 24 (RUPS - Relay Unit Power Sockets) and 69 (MKIN-MULTI - Multi-function module)
+- **Linting**: Replaced deprecated `asyncio.TimeoutError` with builtin `TimeoutError`
+
+### Added
+- `RUPSModuleInfo` class for type 24 modules (230V power socket relay units)
+- `MKINMULTIModuleInfo` class for type 69 modules (Kinetic/Chorus/IAQ/Rekuperator)
+
 ## [1.4.4] - 2025-01-26
 
 ### Fixed

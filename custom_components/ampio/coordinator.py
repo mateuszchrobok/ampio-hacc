@@ -8,6 +8,8 @@ import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from itertools import groupby
+from operator import attrgetter
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -16,15 +18,18 @@ if TYPE_CHECKING:
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_VERSION,
     CONF_BROKER,
+    DATA_AMPIO,
+    DATA_AMPIO_API,
     DEFAULT_QOS,
     DOMAIN,
     SIGNAL_ADD_ENTITIES,
@@ -37,10 +42,24 @@ from .const import (
 )
 from .models import AmpioModuleInfo, ItemName, Message, PublishPayloadType
 
+# Type for message callbacks
+MessageCallbackType = Callable[[Any], None]
+
 _LOGGER = logging.getLogger(__name__)
 
 # Regex to extract MAC from topic
 MAC_FROM_TOPIC_RE = re.compile(r"^ampio/from/(?P<mac>.*)/.*$")
+
+
+@dataclass(frozen=True)
+class Subscription:
+    """Entity subscription data class."""
+
+    topic: str
+    is_active: Callable[[], bool]
+    job: MessageCallbackType
+    qos: int
+    encoding: str | None
 
 
 @dataclass
@@ -94,6 +113,21 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         if result != "OK":
             raise ConfigEntryNotReady(f"Failed to connect to MQTT broker: {result}")
 
+        # Create MQTT Server device FIRST (before any module devices)
+        # This prevents via_device warnings when module devices reference it
+        device_registry = dr.async_get(self.hass)
+        device_registry.async_get_or_create(
+            config_entry_id=self.config_entry.entry_id,
+            connections={(CONNECTION_NETWORK_MAC, "ampio-mqtt")},
+            identifiers={(DOMAIN, "ampio-mqtt")},
+            name="Ampio MQTT Server",
+            manufacturer="Ampio",
+            model="MQTT Server",
+        )
+
+        # Store MQTT client at DATA_AMPIO_API for entity subscriptions
+        self.hass.data[DATA_AMPIO][DATA_AMPIO_API] = self._mqtt_client
+
         await self._setup_subscriptions()
         await self._start_discovery()
 
@@ -113,7 +147,7 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
             TOPIC_NAMES_RESPONSE,
         ]
         for topic in topics:
-            await self._mqtt_client.async_subscribe(topic, DEFAULT_QOS)
+            await self._mqtt_client.async_subscribe(topic, qos=DEFAULT_QOS)
 
     async def _start_discovery(self) -> None:
         """Start device discovery."""
@@ -123,6 +157,54 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         # Request server version and device list
         await self._mqtt_client.async_publish(TOPIC_VERSION_REQUEST, "", 0, False)
         await self._mqtt_client.async_publish(TOPIC_DISCOVERY_REQUEST, "1", 0, False)
+
+        # Start a timeout task to complete discovery if descriptions don't arrive
+        self.hass.async_create_task(self._discovery_timeout())
+
+    async def _discovery_timeout(self) -> None:
+        """Complete discovery after timeout if descriptions not received."""
+        await asyncio.sleep(15)  # Wait 15 seconds for descriptions
+        if self._pending_modules:
+            _LOGGER.warning(
+                "Description timeout: %d modules still pending, completing discovery without descriptions",
+                len(self._pending_modules),
+            )
+            # Process remaining modules without descriptions
+            for mac, module in list(self._pending_modules.items()):
+                module.update_configs()
+                _LOGGER.info(
+                    "Discovered (no description): %s-%s (%s): %s",
+                    module.code,
+                    module.model,
+                    module.software,
+                    module.name,
+                )
+                # Collect entity configs
+                for component, configs in module.configs.items():
+                    if component not in self.data.entity_configs:
+                        self.data.entity_configs[component] = []
+                    for config in configs:
+                        unique_id = config.get("unique_id")
+                        if unique_id and unique_id not in self.data.unique_ids:
+                            self.data.entity_configs[component].append(config)
+                            self.data.unique_ids.add(unique_id)
+                # Store module data
+                self.data.modules[mac] = module
+
+            self._pending_modules.clear()
+            _LOGGER.info("All modules discovered (via timeout)")
+            self._discovery_complete.set()
+
+            # Copy entity configs to hass.data for platform discovery
+            from .const import DATA_AMPIO
+
+            for component, configs in self.data.entity_configs.items():
+                if component not in self.hass.data[DATA_AMPIO]:
+                    self.hass.data[DATA_AMPIO][component] = []
+                self.hass.data[DATA_AMPIO][component].extend(configs)
+                _LOGGER.info("Added %d %s entities for discovery", len(configs), component)
+
+            async_dispatcher_send(self.hass, SIGNAL_ADD_ENTITIES)
 
     @callback
     def _handle_message(self, msg: Message) -> None:
@@ -148,16 +230,11 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         version = data.get(ATTR_VERSION, "N/A")
         self.data.server_version = version
 
+        # Update existing device with version info (device created in async_setup)
         device_registry = dr.async_get(self.hass)
-        device_registry.async_get_or_create(
-            config_entry_id=self.config_entry.entry_id,
-            connections={(CONNECTION_NETWORK_MAC, "ampio-mqtt")},
-            identifiers={(DOMAIN, "ampio-mqtt")},
-            name="Ampio MQTT Server",
-            manufacturer="Ampio",
-            model="MQTT Server",
-            sw_version=version,
-        )
+        device = device_registry.async_get_device(identifiers={(DOMAIN, "ampio-mqtt")})
+        if device:
+            device_registry.async_update_device(device.id, sw_version=version)
         _LOGGER.debug("Ampio MQTT Server version: %s", version)
 
     def _handle_device_list(self, msg: Message) -> None:
@@ -242,6 +319,16 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         if len(self._pending_modules) == 0:
             _LOGGER.info("All modules discovered")
             self._discovery_complete.set()
+
+            # Copy entity configs to hass.data for platform discovery
+            from .const import DATA_AMPIO
+
+            for component, configs in self.data.entity_configs.items():
+                if component not in self.hass.data[DATA_AMPIO]:
+                    self.hass.data[DATA_AMPIO][component] = []
+                self.hass.data[DATA_AMPIO][component].extend(configs)
+                _LOGGER.info("Added %d %s entities for discovery", len(configs), component)
+
             async_dispatcher_send(self.hass, SIGNAL_ADD_ENTITIES)
 
     def get_entity_configs(self, component: str) -> list[dict[str, Any]]:
@@ -266,7 +353,7 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
 
 
 class AmpioMQTTClient:
-    """Ampio MQTT Client wrapper."""
+    """Ampio MQTT Client wrapper with entity subscription support."""
 
     def __init__(
         self,
@@ -277,11 +364,15 @@ class AmpioMQTTClient:
         """Initialize the MQTT client."""
         self.hass = hass
         self.config_entry = config_entry
-        self._message_callback = message_callback
+        self._coordinator_callback = message_callback
         self._mqttc: mqtt.Client | None = None
         self._paho_lock = asyncio.Lock()
-        self._subscriptions: dict[str, int] = {}
+        # Internal subscriptions for discovery (topic -> qos)
+        self._discovery_subscriptions: dict[str, int] = {}
+        # Entity subscriptions (list of Subscription objects)
+        self.subscriptions: list[Subscription] = []
         self.connected = False
+        self._connected_event = asyncio.Event()
 
         self._init_client()
 
@@ -328,6 +419,14 @@ class AmpioMQTTClient:
             return mqtt.error_string(result)
 
         self._mqttc.loop_start()
+
+        # Wait for connection to be fully established (on_connect callback)
+        try:
+            await asyncio.wait_for(self._connected_event.wait(), timeout=10.0)
+        except TimeoutError:
+            _LOGGER.error("Timeout waiting for MQTT connection")
+            return "Connection timeout"
+
         return "OK"
 
     async def async_disconnect(self) -> None:
@@ -341,16 +440,76 @@ class AmpioMQTTClient:
 
         await self.hass.async_add_executor_job(stop)
 
-    async def async_subscribe(self, topic: str, qos: int = 0) -> None:
-        """Subscribe to an MQTT topic."""
+    async def async_subscribe(
+        self,
+        topic: str,
+        msg_callback: MessageCallbackType | None = None,
+        qos: int = 0,
+        encoding: str | None = "utf-8",
+    ) -> Callable[[], None] | None:
+        """Subscribe to an MQTT topic.
+
+        If msg_callback is provided, this is an entity subscription that returns
+        an unsubscribe callable. Otherwise, it's a discovery subscription.
+        """
+        if not self._mqttc:
+            return None
+
+        if msg_callback is None:
+            # Simple discovery subscription
+            self._discovery_subscriptions[topic] = qos
+            if self.connected:
+                async with self._paho_lock:
+                    await self.hass.async_add_executor_job(self._mqttc.subscribe, topic, qos)
+            return None
+
+        # Entity subscription with callback
+        if not isinstance(topic, str):
+            raise HomeAssistantError("Topic needs to be a string!")
+
+        subscription = Subscription(topic, lambda: True, msg_callback, qos, encoding)
+        self.subscriptions.append(subscription)
+
+        # Perform actual subscription if connected
+        if self.connected:
+            await self._async_perform_subscription(topic, qos)
+
+        @callback
+        def async_remove() -> None:
+            """Remove subscription."""
+            if subscription not in self.subscriptions:
+                raise HomeAssistantError("Can't remove subscription twice")
+            self.subscriptions.remove(subscription)
+
+            if any(other.topic == topic for other in self.subscriptions):
+                # Other subscriptions on topic remaining - don't unsubscribe
+                return
+
+            # Only unsubscribe if connected
+            if self.connected:
+                self.hass.async_create_task(self._async_unsubscribe(topic))
+
+        return async_remove
+
+    async def _async_perform_subscription(self, topic: str, qos: int) -> None:
+        """Perform a paho-mqtt subscription."""
         if not self._mqttc:
             return
 
-        self._subscriptions[topic] = qos
+        _LOGGER.debug("Subscribing entity to %s", topic)
+        async with self._paho_lock:
+            result, _ = await self.hass.async_add_executor_job(self._mqttc.subscribe, topic, qos)
+            if result != 0:
+                _LOGGER.error("Failed to subscribe to %s: result=%s", topic, result)
 
-        if self.connected:
-            async with self._paho_lock:
-                await self.hass.async_add_executor_job(self._mqttc.subscribe, topic, qos)
+    async def _async_unsubscribe(self, topic: str) -> None:
+        """Unsubscribe from a topic."""
+        if not self._mqttc:
+            return
+
+        _LOGGER.debug("Unsubscribing from %s", topic)
+        async with self._paho_lock:
+            await self.hass.async_add_executor_job(self._mqttc.unsubscribe, topic)
 
     async def async_publish(
         self, topic: str, payload: PublishPayloadType, qos: int, retain: bool
@@ -381,9 +540,18 @@ class AmpioMQTTClient:
         self.connected = True
         _LOGGER.info("Connected to Ampio MQTT broker")
 
-        # Re-subscribe to all topics (use add_job since this is called from paho thread)
-        for topic, qos in self._subscriptions.items():
-            self.hass.add_job(self.async_subscribe(topic, qos))
+        # Signal that connection is ready
+        self.hass.loop.call_soon_threadsafe(self._connected_event.set)
+
+        # Re-subscribe to discovery topics
+        for topic, qos in self._discovery_subscriptions.items():
+            self.hass.add_job(self._async_perform_subscription, topic, qos)
+
+        # Re-subscribe to entity topics (group by topic to use highest qos)
+        keyfunc = attrgetter("topic")
+        for topic, subs in groupby(sorted(self.subscriptions, key=keyfunc), keyfunc):
+            max_qos = max(subscription.qos for subscription in subs)
+            self.hass.add_job(self._async_perform_subscription, topic, max_qos)
 
     def _on_disconnect(
         self,
@@ -399,8 +567,6 @@ class AmpioMQTTClient:
 
     def _on_message(self, _mqttc: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         """Handle incoming MQTT message."""
-        from homeassistant.util import dt as dt_util
-
         _LOGGER.debug(
             "Received message on %s%s: %s",
             msg.topic,
@@ -408,30 +574,63 @@ class AmpioMQTTClient:
             msg.payload,
         )
 
-        # Decode payload
+        timestamp = dt_util.utcnow()
+
+        # Decode payload for discovery subscriptions
         payload: str | bytes
         try:
             payload = msg.payload.decode("utf-8")
         except (AttributeError, UnicodeDecodeError):
             payload = msg.payload
 
-        # Find subscribed topic that matches
+        # Check if this is a discovery topic message
         subscribed_topic = None
-        for topic in self._subscriptions:
+        for topic in self._discovery_subscriptions:
             if self._topic_matches(topic, msg.topic):
                 subscribed_topic = topic
                 break
 
-        message = Message(
-            topic=msg.topic,
-            payload=payload,
-            qos=msg.qos,
-            retain=msg.retain,
-            subscribed_topic=subscribed_topic,
-            timestamp=dt_util.utcnow(),
-        )
+        if subscribed_topic:
+            # Send to coordinator callback for discovery messages
+            message = Message(
+                topic=msg.topic,
+                payload=payload,
+                qos=msg.qos,
+                retain=msg.retain,
+                subscribed_topic=subscribed_topic,
+                timestamp=timestamp,
+            )
+            self.hass.add_job(self._coordinator_callback, message)
 
-        self.hass.add_job(self._message_callback, message)
+        # Dispatch to entity subscriptions
+        for subscription in self.subscriptions:
+            if not self._topic_matches(subscription.topic, msg.topic):
+                continue
+
+            # Decode payload with subscription's encoding
+            sub_payload: str | bytes = msg.payload
+            if subscription.encoding is not None:
+                try:
+                    sub_payload = msg.payload.decode(subscription.encoding)
+                except (AttributeError, UnicodeDecodeError):
+                    _LOGGER.warning(
+                        "Can't decode payload %s on %s with encoding %s",
+                        msg.payload,
+                        msg.topic,
+                        subscription.encoding,
+                    )
+                    continue
+
+            entity_message = Message(
+                topic=msg.topic,
+                payload=sub_payload,
+                qos=msg.qos,
+                retain=msg.retain,
+                subscribed_topic=subscription.topic,
+                timestamp=timestamp,
+            )
+            # Use add_job since we're in the paho thread (thread-safe)
+            self.hass.add_job(subscription.job, entity_message)
 
     @staticmethod
     def _topic_matches(subscription: str, topic: str) -> bool:
