@@ -67,8 +67,13 @@ AMPIO_DEVICE_SCHEMA = vol.Schema(
 
 AMPIO_DEVICES_SCHEMA = vol.Schema(
     {
-        vol.Required(ATTR_S): vol.Coerce(int),
-        vol.Optional(ATTR_D, default=[]): vol.All(
+        vol.Optional(ATTR_S): vol.Coerce(int),  # Optional - not in new format
+        vol.Optional(ATTR_D, default=[]): vol.All(  # Old format key
+            ensure_list,
+            # pylint: disable=unnecessary-lambda
+            [lambda value: AMPIO_DEVICE_SCHEMA(value)],
+        ),
+        vol.Optional(ATTR_DEVICES, default=[]): vol.All(  # New format key
             ensure_list,
             # pylint: disable=unnecessary-lambda
             [lambda value: AMPIO_DEVICE_SCHEMA(value)],

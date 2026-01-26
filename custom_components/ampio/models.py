@@ -58,6 +58,7 @@ from .validators import (
     ATTR_AU,
     ATTR_D,
     ATTR_DATE_PROD,
+    ATTR_DEVICES,
     ATTR_FLAG,
     ATTR_I,
     ATTR_MAC,
@@ -406,7 +407,9 @@ class AmpioModuleInfo:
         """Create a module object from topic payload."""
         devices = AMPIO_DEVICES_SCHEMA(payload)
         result: list[AmpioModuleInfo] = []
-        for device in devices[ATTR_D]:
+        # Support both old format (d) and new format (devices)
+        device_list = devices.get(ATTR_D) or devices.get(ATTR_DEVICES, [])
+        for device in device_list:
             # Use GenericModuleInfo for unknown module types (provides auto-detection)
             # Note: GenericModuleInfo is defined later in the file but is in CLASS_FACTORY
             klass = CLASS_FACTORY.get(device[ATTR_TYPE])

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2025-01-26
+
+### Fixed
+- **Device Discovery Schema**: Support both old `{"s":..., "d":[...]}` and new `{"devices":[...]}` JSON formats from MQTT broker
+  - Updated `AMPIO_DEVICES_SCHEMA` in validators.py to accept both `"d"` and `"devices"` keys
+  - Updated `from_topic_payload()` in models.py to check for both keys
+
 ## [1.4.3] - 2025-01-26
 
 ### Fixed
