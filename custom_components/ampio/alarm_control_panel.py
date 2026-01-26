@@ -9,21 +9,12 @@ from typing import Any
 
 from homeassistant.components.alarm_control_panel import (
     DOMAIN as ALARM_DOMAIN,
-)
-from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
+    AlarmControlPanelState,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_ARMING,
-    STATE_ALARM_DISARMED,
-    STATE_ALARM_PENDING,
-    STATE_ALARM_TRIGGERED,
-    STATE_UNKNOWN,
-)
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -138,17 +129,17 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, AlarmControlPanelEntity):
     def state(self) -> str:
         """Return the state of the alarm."""
         if self._is_armed_away():
-            self._alarm_state = STATE_ALARM_ARMED_AWAY
+            self._alarm_state = AlarmControlPanelState.ARMED_AWAY
         elif self._is_armed_home():
-            self._alarm_state = STATE_ALARM_ARMED_HOME
+            self._alarm_state = AlarmControlPanelState.ARMED_HOME
         elif self._is_triggered():
-            self._alarm_state = STATE_ALARM_TRIGGERED
+            self._alarm_state = AlarmControlPanelState.TRIGGERED
         elif self._is_arming():
-            self._alarm_state = STATE_ALARM_ARMING
+            self._alarm_state = AlarmControlPanelState.ARMING
         elif self._is_pending():
-            self._alarm_state = STATE_ALARM_PENDING
+            self._alarm_state = AlarmControlPanelState.PENDING
         elif self._is_disarmed():
-            self._alarm_state = STATE_ALARM_DISARMED
+            self._alarm_state = AlarmControlPanelState.DISARMED
 
         return self._alarm_state
 
@@ -276,7 +267,7 @@ class AmpioSatelAlarmControlPanel(AmpioEntity, AlarmControlPanelEntity):
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Disarm the alarm."""
-        clear_alarm = self._alarm_state == STATE_ALARM_TRIGGERED
+        clear_alarm = self._alarm_state == AlarmControlPanelState.TRIGGERED
         cmd = f"{ALARM_CMD_DISARM}{self._all_cmd_data}"
         _LOGGER.debug("Command disarm: %s", cmd)
         self.publish(self._config[CONF_RAW_TOPIC], cmd)
