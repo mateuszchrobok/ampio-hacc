@@ -51,12 +51,30 @@ Ampio Server MQTT Broker (port 1883)
 
 **Push-based updates**: No polling. MQTT topics publish state changes which entities subscribe to.
 
-**Discovery process** (discovery.py):
+**Discovery process** (coordinator.py):
 1. Subscribe to `ampio/from/info/version` → get server version
 2. Publish to `ampio/to/can/dev/list` → request device list
-3. For each device MAC, publish to `ampio/to/{mac}/description` → get item names
+3. Publish `devices`, then `objects`, as the payload of `ampio/control/{user}/config` →
+   read the project tables back on `ampio/fromDB/{user}/config/{table}` and rebuild the item
+   names from them (project_db.py)
 4. Create entity configs based on module type (models.py)
 5. Signal platforms to create entities
+
+**Item names do NOT come from the modules.** The legacy step — publish to
+`ampio/to/{mac}/description`, read `ampio/from/{mac}/description` — is **not answered by Ampio
+MQTT bridge 5.x**. Every module times out, `AmpioModuleInfo.names` stays empty, and every
+name-driven platform silently produces zero entities while the state topics stay live and
+retained. `ampio/to/info/version` is dead the same way; only `ampio/to/can/dev/list` still
+answers, which is why devices appear but their items do not.
+
+The names live in the server's project database instead:
+- `devices` — `id`, `mac` (the user MAC as an integer: 34266 → `85DA`), `typ_urzadzenia`
+- `objects` — `id_urzadzenia`, `typ_komponentu`, `funkcja` (**the 1-based index used in the
+  state topic**), `opis_menu` (the human name)
+
+`names` is keyed by that 1-based index — the same base every builder in models.py assumes.
+Rows are applied in `id` order and the first to claim an index wins, because the project also
+holds group objects ("Cały dom") that reuse a physical item's index.
 
 **Entity creation pattern**:
 - Platforms register via `async_dispatcher_connect(SIGNAL_ADD_ENTITIES, ...)`
@@ -93,7 +111,12 @@ ampio/from/{mac}/{item}  - State updates from device
 ampio/to/{mac}/{item}    - Commands to device
 ampio/from/info/version  - Server version
 ampio/from/can/dev/list  - Device discovery response
-ampio/from/{mac}/description - Module names/config
+ampio/from/{mac}/description - Module names/config (DEAD on bridge 5.x — never answered)
+
+ampio/control/{user}/config          - Request a project table; payload IS the table name
+ampio/fromDB/{user}/config/{table}   - The table, e.g. devices / objects / groups / scenes
+device_api/to/version                - Server version (replaces the dead ampio/to/info/version)
+device_api/to/{mac_hex_lower}/get_data - Module info; answers on device_api/from/{MAC}/info
 ```
 
 ## Dependencies
