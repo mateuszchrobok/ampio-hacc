@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-03
+
+### Added
+- **Item names from the project database**: the integration now rebuilds
+  `AmpioModuleInfo.names` from the server's own project tables instead of the
+  per-module description handshake. It publishes `devices` and then `objects` as the
+  payload of `ampio/control/<user>/config` and reads the reply on
+  `ampio/fromDB/<user>/config/<table>` (new `project_db.py`).
+
+### Fixed
+- **No switches, covers or climate entities on Ampio MQTT bridge 5.x**: the bridge never
+  answers `ampio/to/<mac>/description`, so every module timed out, `names` stayed empty
+  and every name-driven platform produced nothing — while the state topics were live and
+  retained the whole time. On a 50-module installation this took the entity count from
+  191 to 632, adding 203 switches, 16 covers and 16 climate zones.
+- **Index base in `AmpioModuleInfo.update_configs`**: the flag and temperature loops passed
+  `index + 1` while all 34 other call sites pass the index unchanged. `AmpioCoverConfig`'s
+  `2 * (index - 1) + 1` arithmetic and the live `state/rs/<n>` numbering both confirm the
+  unchanged index is correct. Neither path was reachable before, so neither was exercised.
+
+### Changed
+- Discovery timeout is now a named constant and raised to 45 s: the `objects` table arrives
+  as a single message that can exceed 1 MB.
+- MSENS, MSENS-LITE and METEO-1s keep their fixed-topic `t/1` sensor. The project also
+  carries a `temp` row at index 1 for those modules, which would otherwise win the
+  unique-id race and replace a correctly classified sensor with an unclassified one.
+- Satel zones are not turned into entities. They are already exposed through
+  `alarm_control_panel`, and on a real installation they account for 2403 of 3235 rows.
+
 ## [1.4.6] - 2025-01-26
 
 ### Fixed
