@@ -371,14 +371,16 @@ class AmpioModuleInfo:
         """Update the config data for entities."""
         self.configs = defaultdict(list)  # clean up current configs
         self.unique_ids = set()
+        # ``index`` is the 1-based number used in the state topic, the same base
+        # every other builder in this file assumes.
         for index, item in self.names.get(ItemTypes.BinaryFlag, {}).items():
-            flag_data = AmpioFlagConfig.from_ampio_device(self, item, index + 1)
+            flag_data = AmpioFlagConfig.from_ampio_device(self, item, index)
             if flag_data and flag_data.unique_id:
                 self.configs["switch"].append(flag_data.config)
                 self.unique_ids.add(flag_data.unique_id)
 
         for index, item in self.names.get(ItemTypes.Temperature, {}).items():
-            temp_data = AmpioTempSensorConfig.from_ampio_device(self, item, index + 1)
+            temp_data = AmpioTempSensorConfig.from_ampio_device(self, item, index)
             if temp_data and temp_data.unique_id:
                 self.configs["sensor"].append(temp_data.config)
                 self.unique_ids.add(temp_data.unique_id)

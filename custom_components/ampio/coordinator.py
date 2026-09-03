@@ -41,6 +41,14 @@ from .const import (
     TOPIC_VERSION_RESPONSE,
 )
 from .models import AmpioModuleInfo, ItemName, Message, PublishPayloadType
+from .project_db import (
+    PROJECT_TABLES,
+    TABLE_DEVICES,
+    TABLE_OBJECTS,
+    TOPIC_PROJECT_REQUEST,
+    TOPIC_PROJECT_RESPONSE,
+    parse_project_db,
+)
 
 # Type for message callbacks
 MessageCallbackType = Callable[[Any], None]
@@ -49,6 +57,11 @@ _LOGGER = logging.getLogger(__name__)
 
 # Regex to extract MAC from topic
 MAC_FROM_TOPIC_RE = re.compile(r"^ampio/from/(?P<mac>.*)/.*$")
+
+# How long to wait for the project database before giving up on item names. The
+# server serves the whole ``objects`` table in one ~1.3 MB message, so this covers
+# a slow first publish rather than a round trip.
+DISCOVERY_TIMEOUT = 45
 
 
 @dataclass(frozen=True)
@@ -94,7 +107,22 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         self._mqtt_client: AmpioMQTTClient | None = None
         self._discovery_complete = asyncio.Event()
         self._pending_modules: dict[str, AmpioModuleInfo] = {}
+        self._project_tables: dict[str, dict[str, Any]] = {}
         self.data = AmpioData()
+
+    @property
+    def _project_user(self) -> str:
+        """Return the MQTT user whose project namespace we read names from."""
+        return str(self.config_entry.data.get(CONF_USERNAME) or "admin")
+
+    @property
+    def _project_topics(self) -> dict[str, str]:
+        """Map each project response topic to the table it carries."""
+        user = self._project_user
+        return {
+            TOPIC_PROJECT_RESPONSE.format(user=user, table=table): table
+            for table in PROJECT_TABLES
+        }
 
     @property
     def mqtt_client(self) -> AmpioMQTTClient | None:
@@ -146,6 +174,10 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
             TOPIC_DISCOVERY_RESPONSE,
             TOPIC_NAMES_RESPONSE,
         ]
+        topics.extend(
+            TOPIC_PROJECT_RESPONSE.format(user=self._project_user, table=table)
+            for table in PROJECT_TABLES
+        )
         for topic in topics:
             await self._mqtt_client.async_subscribe(topic, qos=DEFAULT_QOS)
 
@@ -158,53 +190,64 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         await self._mqtt_client.async_publish(TOPIC_VERSION_REQUEST, "", 0, False)
         await self._mqtt_client.async_publish(TOPIC_DISCOVERY_REQUEST, "1", 0, False)
 
+        # Request the project tables that carry the item names. Each table is
+        # requested by publishing its own name as the payload.
+        project_request = TOPIC_PROJECT_REQUEST.format(user=self._project_user)
+        for table in PROJECT_TABLES:
+            await self._mqtt_client.async_publish(project_request, table, 0, False)
+
         # Start a timeout task to complete discovery if descriptions don't arrive
         self.hass.async_create_task(self._discovery_timeout())
 
     async def _discovery_timeout(self) -> None:
-        """Complete discovery after timeout if descriptions not received."""
-        await asyncio.sleep(15)  # Wait 15 seconds for descriptions
+        """Complete discovery if the project database never arrives."""
+        await asyncio.sleep(DISCOVERY_TIMEOUT)
         if self._pending_modules:
             _LOGGER.warning(
-                "Description timeout: %d modules still pending, completing discovery without descriptions",
+                "Project database timeout: %d modules still pending, completing "
+                "discovery without item names",
                 len(self._pending_modules),
             )
-            # Process remaining modules without descriptions
-            for mac, module in list(self._pending_modules.items()):
-                module.update_configs()
-                _LOGGER.info(
-                    "Discovered (no description): %s-%s (%s): %s",
-                    module.code,
-                    module.model,
-                    module.software,
-                    module.name,
-                )
-                # Collect entity configs
-                for component, configs in module.configs.items():
-                    if component not in self.data.entity_configs:
-                        self.data.entity_configs[component] = []
-                    for config in configs:
-                        unique_id = config.get("unique_id")
-                        if unique_id and unique_id not in self.data.unique_ids:
-                            self.data.entity_configs[component].append(config)
-                            self.data.unique_ids.add(unique_id)
-                # Store module data
-                self.data.modules[mac] = module
+            self._complete_discovery("timeout")
 
-            self._pending_modules.clear()
-            _LOGGER.info("All modules discovered (via timeout)")
-            self._discovery_complete.set()
+    def _complete_discovery(self, reason: str) -> None:
+        """Build the entity configs of every pending module and publish them."""
+        for mac, module in list(self._pending_modules.items()):
+            module.update_configs()
+            _LOGGER.info(
+                "Discovered (%s): %s-%s (%s): %s",
+                reason,
+                module.code,
+                module.model,
+                module.software,
+                module.name,
+            )
+            # Collect entity configs
+            for component, configs in module.configs.items():
+                if component not in self.data.entity_configs:
+                    self.data.entity_configs[component] = []
+                for config in configs:
+                    unique_id = config.get("unique_id")
+                    if unique_id and unique_id not in self.data.unique_ids:
+                        self.data.entity_configs[component].append(config)
+                        self.data.unique_ids.add(unique_id)
+            # Store module data
+            self.data.modules[mac] = module
 
-            # Copy entity configs to hass.data for platform discovery
-            from .const import DATA_AMPIO
+        self._pending_modules.clear()
+        _LOGGER.info("All modules discovered (via %s)", reason)
+        self._discovery_complete.set()
 
-            for component, configs in self.data.entity_configs.items():
-                if component not in self.hass.data[DATA_AMPIO]:
-                    self.hass.data[DATA_AMPIO][component] = []
-                self.hass.data[DATA_AMPIO][component].extend(configs)
-                _LOGGER.info("Added %d %s entities for discovery", len(configs), component)
+        # Copy entity configs to hass.data for platform discovery
+        from .const import DATA_AMPIO
 
-            async_dispatcher_send(self.hass, SIGNAL_ADD_ENTITIES)
+        for component, configs in self.data.entity_configs.items():
+            if component not in self.hass.data[DATA_AMPIO]:
+                self.hass.data[DATA_AMPIO][component] = []
+            self.hass.data[DATA_AMPIO][component].extend(configs)
+            _LOGGER.info("Added %d %s entities for discovery", len(configs), component)
+
+        async_dispatcher_send(self.hass, SIGNAL_ADD_ENTITIES)
 
     @callback
     def _handle_message(self, msg: Message) -> None:
@@ -213,6 +256,8 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
             self._handle_version_info(msg)
         elif msg.topic == TOPIC_DISCOVERY_RESPONSE:
             self._handle_device_list(msg)
+        elif msg.topic in self._project_topics:
+            self._handle_project_table(self._project_topics[msg.topic], msg)
         elif msg.subscribed_topic == TOPIC_NAMES_RESPONSE:
             self._handle_module_names(msg)
         else:
@@ -330,6 +375,47 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
                 _LOGGER.info("Added %d %s entities for discovery", len(configs), component)
 
             async_dispatcher_send(self.hass, SIGNAL_ADD_ENTITIES)
+
+    def _handle_project_table(self, table: str, msg: Message) -> None:
+        """Store one project table, and apply the names once both have arrived."""
+        try:
+            payload = json.loads(str(msg.payload))
+        except (json.JSONDecodeError, ValueError, TypeError) as err:
+            _LOGGER.error("Unable to parse project table %s: %s", table, err)
+            return
+
+        self._project_tables[table] = payload
+        if any(name not in self._project_tables for name in PROJECT_TABLES):
+            return
+        if not self._pending_modules:
+            return
+
+        try:
+            names = parse_project_db(
+                self._project_tables[TABLE_DEVICES],
+                self._project_tables[TABLE_OBJECTS],
+            )
+        except Exception:  # pylint: disable=broad-except
+            # A malformed table must leave discovery to the timeout path rather
+            # than taking the whole integration down.
+            _LOGGER.exception("Unable to build item names from the project database")
+            return
+
+        named = 0
+        for module in self._pending_modules.values():
+            # The device list reports the MSERV as user_mac "1" while the project
+            # stores every MAC as a 16-bit number, so compare zero-padded.
+            module_names = names.get(module.user_mac.zfill(4))
+            if module_names:
+                module.names = module_names
+                named += 1
+
+        _LOGGER.info(
+            "Project database applied: %d of %d modules named",
+            named,
+            len(self._pending_modules),
+        )
+        self._complete_discovery("project database")
 
     def get_entity_configs(self, component: str) -> list[dict[str, Any]]:
         """Get entity configs for a component."""
