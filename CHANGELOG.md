@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-09-03
+
+### Added
+- **CO2 on every M-SENS**, not only PCB >= 4. On a real installation all ten M-SENS publish
+  `au16l/7` with plausible ppm (measured 511-2056) while reporting a lower pcb, so the version
+  gate was hiding a live measurement on every sensor in the house. A module with no CO2 cell
+  simply never publishes the topic and its entity stays unavailable.
+
+### Fixed
+- **Names padded with 0xFF produced 120-character entity ids.** Ampio pads names to a fixed
+  field width with 0xFF, which is not valid UTF-8, so the whole name fell through to cp1254 and
+  decoded as a run of 'ÿ' — device 852D arrived as "A202: RUPS Gniazda 230V" followed by ~100 of
+  them. `base64decode` now strips the padding before decoding.
+- **`sw_version` is passed as a string.** HA's frame helper coerces an int today and warns, but
+  from 2026.12.0 it raises — inside `async_get_or_create`, on a path with no exception handling,
+  which would abort the device-list loop and leave the integration with no entities at all. This
+  is not a cosmetic deprecation.
+
 ## [1.5.0] - 2026-09-03
 
 ### Added

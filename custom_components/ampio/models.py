@@ -49,7 +49,6 @@ from .const import (
     CONF_WHITE_VALUE_STATE_TOPIC,
     DOMAIN,
     MSENS_PCB_V3,
-    MSENS_PCB_V4,
 )
 from .validators import (
     AMPIO_DESCRIPTIONS_SCHEMA,
@@ -276,11 +275,18 @@ class ItemTypes(str, Enum):
 
 
 def base64decode(value: str) -> str:
-    """Decode base64 string."""
+    """Decode a base64 string, dropping the module's fixed-width padding.
+
+    Ampio pads names to a fixed field width with 0xFF. That byte is not valid
+    UTF-8, so the whole name used to fall through to cp1254 and decode as a run of
+    'ÿ' — device 852D arrived as "A202: RUPS Gniazda 230V" followed by ~100 of them,
+    which HA then slugified into a 120-character entity id.
+    """
+    raw = base64.b64decode(value).strip(b"\xff\x00").strip()
     try:
-        return base64.b64decode(value).decode("utf-8").strip()
+        return raw.decode("utf-8").strip()
     except UnicodeDecodeError:
-        return base64.b64decode(value).decode("cp1254").strip()
+        return raw.decode("cp1254").strip()
 
 
 def base64encode(value: str) -> str:
@@ -403,7 +409,11 @@ class AmpioModuleInfo:
             "name": self.name,
             "manufacturer": "Ampio",
             "model": self.model,
-            "sw_version": self.software,
+            # Must be a string. HA's frame helper currently coerces an int and warns;
+            # from 2026.12.0 it raises instead, and it raises inside
+            # async_get_or_create on a path with no exception handling, which would
+            # abort the device-list loop and leave the integration with no entities.
+            "sw_version": None if self.software is None else str(self.software),
             "via_device": (DOMAIN, "ampio-mqtt"),
         }
 
@@ -452,7 +462,7 @@ class MSENSModuleInfo(AmpioModuleInfo):
     M-SENS variants:
     - PCB < MSENS_PCB_V3: M-SENS-1 (basic, temperature only via au32)
     - PCB == MSENS_PCB_V3: M-SENS (standard, T/H/P/Noise/Illuminance/AQ)
-    - PCB >= MSENS_PCB_V4: M-SENS-CO2 (adds CO2 sensor at au16l/7)
+    - CO2 at au16l/7 is offered for all of them; pcb does not reliably flag it
     """
 
     def update_configs(self) -> None:
@@ -476,13 +486,17 @@ class MSENSModuleInfo(AmpioModuleInfo):
             ),
         ]
 
-        # Add CO2 sensor for M-SENS-CO2 variant (PCB >= MSENS_PCB_V4)
-        if self.pcb >= MSENS_PCB_V4:
-            sensor_configs.append(
-                AmpioCO2SensorConfig.from_ampio_device(
-                    self, ItemName(base64encode("CO2:Carbon Dioxide"))
-                )
+        # CO2 is offered for every M-SENS, not just PCB >= 4. On a real installation
+        # all ten M-SENS publish au16l/7 with plausible ppm (measured 511-2056) while
+        # reporting a lower pcb, so the version gate suppressed a live channel on
+        # every sensor in the house. A module that genuinely has no CO2 cell simply
+        # never publishes the topic and its entity stays unavailable, which is the
+        # honest outcome — and strictly better than hiding a working measurement.
+        sensor_configs.append(
+            AmpioCO2SensorConfig.from_ampio_device(
+                self, ItemName(base64encode("CO2:Carbon Dioxide"))
             )
+        )
 
         for ampio_config in sensor_configs:
             if ampio_config and ampio_config.unique_id:
@@ -1804,12 +1818,10 @@ class AmpioCO2SensorConfig(AmpioConfig):
         """Create config from ampio device.
 
         M-SENS-CO2 variant has CO2 sensor at au16l/7.
-        Requires PCB version >= MSENS_PCB_V4 (M-SENS-CO2 variant).
+        Offered for every M-SENS: the pcb value does not reliably indicate whether a
+        CO2 cell is fitted, and a module without one just never publishes the topic.
         """
         mac = ampio_device.user_mac
-        # M-SENS-CO2 requires PCB version 4 or higher
-        if ampio_device.pcb < MSENS_PCB_V4:
-            return None
         name = f"CO2 {ampio_device.name}"
         config = {
             CONF_UNIQUE_ID: f"ampio-{mac}-co2{index}",
