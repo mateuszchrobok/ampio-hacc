@@ -176,7 +176,8 @@ TYPE_CODES: dict[int, str] = {
     53: "MALARM-8s",
     54: "MAV-AMP-s",
     55: "MRDN-5s",
-    69: "MKIN-MULTI",  # Multi-function module (Kinetic/Chorus/IAQ/Rekuperator)
+    69: "MKIN-MULTI",  # 2-channel LED dimmer. "Kin" is *Kinkiet* (a wall light) and
+    # "Chors" is a luminaire brand — NOT Kinetic buttons and NOT Chorus audio.
     # Wireless
     56: "WL-REL-2p",
     57: "WL-REL-ROL1p",
@@ -1474,14 +1475,30 @@ class RUPSModuleInfo(AmpioModuleInfo):
 
 
 class MKINMULTIModuleInfo(AmpioModuleInfo):
-    """MKIN-MULTI Ampio module information - Multi-function module.
+    """Type 69 — a 2-channel LED dimmer, whatever its objects are named.
 
-    Handles multi-function modules that may include:
-    - Kinetic buttons
-    - Chorus audio
-    - IAQ sensors
-    - Rekuperator control
+    The naming is a trap and the previous comment here fell into it. On a real
+    installation these modules are called things like "Kin.Syp. + Reku",
+    "Kin.Sch + Chors + IAQ" and "Chors 2 / Chors 3", which reads like Kinetic
+    buttons, Chorus audio and a recuperator. It is none of those:
+
+    - **"Kin" is Kinkiet** — Polish for a wall light. The auto-generated object
+      names spell it out in full: "Kinkiety w sypialni wyj 1", "Kinkiet Schody".
+    - **"Chors" is a luminaire brand.** Those objects carry the project's
+      lighting-circuit designators (OS_7.2, OS_11.x), the same scheme every
+      relay-driven light uses, and a lighting scene writes 0..255 dim values to
+      one of them alongside an "everything off" step.
+    - The decisive evidence is Ampio's own icon table: every ``led`` object here
+      carries icon pair 33/34 = "OFF"/"ON", while the fan icon (40 = "Fan On")
+      and 42/43 = "Reku. Day"/"Reku. Night" belong only to the flags, which are
+      the **recuperator** mode and speed ladder.
+
+    So the ``led`` objects are dimmer channels (min 0, max 255, state ``a/<n>``)
+    and the flags are recuperator control. Reading them as air conditioning is
+    how one installation spent a long time trying to "fix the AC" while
+    switching bedroom wall lights.
     """
+
 
     def update_configs(self) -> None:
         """Update module specific configuration with auto-detection."""
