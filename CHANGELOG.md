@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-09-04
+
+### Changed
+- **The CO2 sensor is now named "eCO2"**, because that is most likely what it is. Every M-SENS in
+  the reference installation reports pcb 3, which the vendor documents as having no CO2 cell, and
+  `au16l/7` tracked the VOC-derived air-quality index with matching slope sign in 10 of 10 modules.
+  The value is still worth having, but it must not be read as an NDIR ppm measurement — the
+  distinguishing test is dynamics, since real CO2 follows occupancy within minutes while a VOC
+  index lags and drifts.
+
 ## [1.5.1] - 2026-09-03
 
 ### Added

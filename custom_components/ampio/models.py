@@ -1822,7 +1822,14 @@ class AmpioCO2SensorConfig(AmpioConfig):
         CO2 cell is fitted, and a module without one just never publishes the topic.
         """
         mac = ampio_device.user_mac
-        name = f"CO2 {ampio_device.name}"
+        # Named "eCO2" on purpose. Every M-SENS in the reference installation reports
+        # pcb 3, which the vendor documents as having no CO2 cell, and au16l/7 tracked
+        # the VOC-derived air-quality index with matching slope sign in 10 of 10
+        # modules. So this is most likely an ESTIMATE derived from VOC, not a measured
+        # NDIR reading, and it must not be used to size ventilation as if it were ppm
+        # truth. The distinguishing test is dynamics: real CO2 follows occupancy within
+        # minutes, a VOC index lags and drifts.
+        name = f"eCO2 {ampio_device.name}"
         config = {
             CONF_UNIQUE_ID: f"ampio-{mac}-co2{index}",
             CONF_NAME: f"ampio-{mac}-co2{index}",
