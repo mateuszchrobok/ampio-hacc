@@ -147,6 +147,17 @@ Topic: ampio/from/{mac}/state/au32/{index}   (32-bit unsigned)
 Payload: numeric value as string
 ```
 
+### Analog Flags
+
+```
+Topic: ampio/from/{mac}/state/afu8/{index}   (8-bit flag: 0-255)
+Topic: ampio/from/{mac}/state/afi16/{index}  (16-bit signed flag)
+Payload: numeric value as string
+```
+
+The project database calls these `bit8` and `bit16`; the wire calls them `afu8`
+and `afi16`. They exist from CAN protocol 22 onwards.
+
 ### RGB/RGBW
 
 ```
@@ -195,6 +206,30 @@ Payload: "0" (off) or "1" (on)
 Topic: ampio/to/{mac}/f/{index}/cmd
 Payload: "0" or "1"
 ```
+
+### Analog Flags (8-bit)
+
+An 8-bit flag has **no** `/cmd` topic. It is written as a raw CAN broadcast:
+
+```
+Topic: ampio/to/{mac}/raw
+Payload: 7AF9 {value} {index-1}
+```
+
+- `value`: one byte, 0-255, hex
+- `index-1`: the flag index as a **0-based** byte, hex — so flag 1 is `00`
+
+Example — set flag 3 of module `85DA` to 64:
+
+```
+Topic: ampio/to/85DA/raw
+Payload: 7af94002
+```
+
+Note the order: **value first, index second**. Source: Ampio's own Node-RED node
+(`node-red-contrib-ampio`, `ampioin/out.js`, the `valtype == 'afu8'` branch),
+which is the only independent implementation of this write. No equivalent branch
+exists there for `afi16`, so the 16-bit write format is unknown.
 
 ### Dimmers
 

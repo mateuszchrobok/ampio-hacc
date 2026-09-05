@@ -18,7 +18,8 @@ enough to rebuild ``names``:
 ``objects``
     One row per named item: ``id_urzadzenia`` points back at the device, ``funkcja``
     is the 1-based index used in the state topic, ``typ_komponentu`` is the project's
-    own component type and ``opis_menu`` is the human name.
+    own component type, ``opis_menu`` is the human name and ``min``/``max`` bound the
+    value where the project bothered to bound it.
 """
 
 from __future__ import annotations
@@ -53,6 +54,9 @@ COMPONENT_TYPES: dict[str, str] = {
     "temp": ItemTypes.Temperature.value,
     "reg": ItemTypes.Temperature.value,
     "led": ItemTypes.BinaryOutput.value,  # see LED_ANALOG_CODES
+    # An 8-bit flag: one byte of state, read on ``state/afu8/<n>``. The project
+    # calls it ``bit8``; the wire calls it ``afu8``.
+    "bit8": ItemTypes.AnalogFlag8.value,
 }
 
 # MLED-1 and MLED-s drive their channels over ``au/<n>``; every other module that
@@ -75,7 +79,12 @@ PLACEHOLDER_NAMES = frozenset({"", "ND", "N/D", "-"})
 #                these rows alone number in the thousands
 #   lin_wej      MSENS channels, built from fixed topics by MSENSModuleInfo
 #   rgbw         built from fixed topics by MRGBu1ModuleInfo
-#   custom, event, bit8, bit16, flaga_liniowa, tekst_can, kamera_rtsp,
+#   bit16        the 16-bit flag. Its state topic (``afi16``) is live, but no
+#                write format for it is known: Ampio's own Node-RED node has an
+#                ``afu8`` branch and no ``afi16`` one, and its generic fallback
+#                (``.../afi16/<n>/cmd``) is unattested. Exposing it writable
+#                would mean guessing a frame at real hardware.
+#   custom, event, flaga_liniowa, tekst_can, kamera_rtsp,
 #   stacja_elsner, symulacja, detekcja, wykres
 #                project-side constructs with no Ampio state topic of their own
 IGNORED_COMPONENT_TYPES = frozenset(
@@ -87,7 +96,6 @@ IGNORED_COMPONENT_TYPES = frozenset(
         "rgbw",
         "custom",
         "event",
-        "bit8",
         "bit16",
         "flaga_liniowa",
         "tekst_can",
@@ -106,6 +114,20 @@ class ProjectDevice:
 
     mac: str
     code: int
+
+
+def optional_int(value: Any) -> int | None:
+    """Coerce a project column to int, or None when it is empty or not a number.
+
+    The project stores ``min``/``max`` as free-form columns: they arrive as ints,
+    as numeric strings, as ``""`` for an object nobody bounded, and as null.
+    """
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def item_type_for(component: str | None, code: int) -> str | None:
@@ -198,7 +220,11 @@ def parse_objects(
         if index in bucket:
             skipped["duplicate index"] += 1
             continue
-        bucket[index] = ItemName(base64encode(label))
+        bucket[index] = ItemName(
+            base64encode(label),
+            value_min=optional_int(row.get("min")),
+            value_max=optional_int(row.get("max")),
+        )
 
     if skipped:
         _LOGGER.debug(

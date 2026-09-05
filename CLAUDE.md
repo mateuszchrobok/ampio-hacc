@@ -100,9 +100,21 @@ All device/entity type mappings are in `models.py`. When adding support for new 
 - `sensor` - Environmental data (temperature, humidity, IAQ, CO2, pressure)
 - `binary_sensor` - Binary inputs
 - `switch` - Binary outputs (relays)
+- `number` - 8-bit analog flags (`afu8`), writable 0-255
 - `light` - Dimmers (MDIM-8s), LED (MLED-1), RGBW (MRGBu-1)
 - `cover` - Roller shutters (MROL-4s)
 - `alarm_control_panel` - Satel integration via MCON
+
+**8-bit flags write as raw CAN, not to a `/cmd` topic.** There is no
+`ampio/to/{mac}/afu8/{n}/cmd`. The frame is `7AF9` + value byte + **0-based**
+index byte, ASCII hex, on `ampio/to/{mac}/raw` — value first, index second. The
+reference is Ampio's own `node-red-contrib-ampio` (`ampioin/out.js`), whose
+`afu8` branch is the only independent implementation of this write; every other
+writable type there falls through to the `/cmd` form. The encoder is
+`models.analog_flag_raw_payload`, verified byte-for-byte against that node's
+output for all 65536 (value, index) pairs — but **never yet confirmed against
+hardware**, and no `ampio/to` command of any kind has been captured on the
+reference installation.
 
 ## MQTT Topic Structure
 
