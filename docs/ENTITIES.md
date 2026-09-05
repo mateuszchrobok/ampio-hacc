@@ -457,6 +457,30 @@ This helps with debugging and understanding which MQTT topic the entity subscrib
 
 ---
 
+## 8-bit Analog Flags (`afu8`)
+
+Any module whose project entry contains a `bit8` object gets one writable
+`number` entity per flag. These are cross-cutting rather than tied to a module
+type, so they do not appear in the per-module tables above.
+
+| Entity ID Pattern | Platform | Range | State Topic | Write |
+|-------------------|----------|-------|-------------|-------|
+| `number.ampio_{mac}_afu8_{index}` | number | 0-255 (step 1) | `state/afu8/{index}` | raw CAN, see below |
+
+The range narrows to the project's own `min`/`max` when it defines a usable
+sub-range of 0-255; otherwise the full byte range is used.
+
+Writes do **not** go to a `/cmd` topic — no such topic exists for `afu8`. The
+value is sent as a raw CAN broadcast on `ampio/to/{mac}/raw` with the payload
+`7AF9` + value byte + 0-based index byte, as ASCII hex. See
+[MQTT_PROTOCOL.md](MQTT_PROTOCOL.md#analog-flags-8-bit).
+
+16-bit flags (`bit16` / `afi16`) are **not** exposed. Their state topic is live,
+but no write format for them is attested anywhere, so exposing them writable
+would mean guessing a CAN frame at real hardware.
+
+---
+
 ## Generic Module Fallback
 
 For unknown module types, the integration uses a generic handler that:

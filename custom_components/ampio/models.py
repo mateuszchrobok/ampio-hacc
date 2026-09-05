@@ -22,6 +22,9 @@ from homeassistant.const import (
 from homeassistant.helpers import device_registry
 
 from .const import (
+    ANALOG_FLAG_MAX,
+    ANALOG_FLAG_MIN,
+    ANALOG_FLAG_RAW_CMD,
     CONF_ALARM_TOPIC,
     CONF_ARMED_TOPIC,
     CONF_AWAY_ZONES,
@@ -33,6 +36,8 @@ from .const import (
     CONF_EXITTIME10_TOPIC,
     CONF_EXITTIME_TOPIC,
     CONF_HOME_ZONES,
+    CONF_MAX_VALUE,
+    CONF_MIN_VALUE,
     CONF_MODE_COMMAND_TOPIC,
     CONF_MODE_STATE_TOPIC,
     CONF_OPENING_STATE_TOPIC,
@@ -225,6 +230,36 @@ def extract_index_from_topic(topic: str) -> int | None:
         return None
 
 
+def analog_flag_raw_payload(value: int, index: int) -> str:
+    """Build the raw CAN payload that writes one 8-bit analog flag (afu8).
+
+    An 8-bit flag has no ``ampio/to/<mac>/afu8/<n>/cmd`` topic. It is written as
+    a raw CAN broadcast on ``ampio/to/<mac>/raw``: the two-byte command id, then
+    the value byte, then the flag index **as a 0-based byte** -- value first,
+    index second.
+
+    That layout is Ampio's, not a guess: ``node-red-contrib-ampio`` (the vendor's
+    own Node-RED node, shipped preinstalled on the M-SERV) builds
+    ``'7AF9' + hex(value) + hex(ioid - 1)`` for ``valtype == 'afu8'`` in
+    ``ampioin/out.js``, and every other writable type in that same switch falls
+    through to the ``/cmd`` form this integration already uses. Like the cover
+    and alarm raw commands here, the payload goes on the wire as an ASCII hex
+    string.
+    """
+    if not ANALOG_FLAG_MIN <= value <= ANALOG_FLAG_MAX:
+        raise ValueError(f"Analog flag value {value} outside {ANALOG_FLAG_MIN}-{ANALOG_FLAG_MAX}")
+    # The index is one byte once decremented, so 1-256 is the whole encodable range.
+    if not 1 <= index <= ANALOG_FLAG_MAX + 1:
+        raise ValueError(f"Analog flag index {index} outside 1-{ANALOG_FLAG_MAX + 1}")
+
+    raw = (
+        ANALOG_FLAG_RAW_CMD
+        + value.to_bytes(1, byteorder="little")
+        + (index - 1).to_bytes(1, byteorder="little")
+    )
+    return raw.hex()
+
+
 @dataclass(frozen=True, slots=True)
 class IndexIntData:
     """Represents the index from last part of topic with data."""
@@ -303,6 +338,12 @@ class ItemName:
     name: str = field(init=False)
     device_class: str | None = field(init=False)
     prefix: str | None = field(init=False)
+    # The project database carries a ``min``/``max`` per object. Only the numeric
+    # platforms use them, and only when the project actually filled them in --
+    # the legacy description handshake has no such field, so these stay None
+    # there. See ``project_db.parse_objects``.
+    value_min: int | None = None
+    value_max: int | None = None
 
     def __post_init__(self) -> None:
         """Initialize computed fields after dataclass init."""
@@ -391,6 +432,18 @@ class AmpioModuleInfo:
             if temp_data and temp_data.unique_id:
                 self.configs["sensor"].append(temp_data.config)
                 self.unique_ids.add(temp_data.unique_id)
+
+        # 8-bit analog flags. Deliberately not gated on ``self.protocol >= 22``
+        # (the version from which afu8 exists, and the gate Ampio's own Node-RED
+        # node uses): the project database is already the gate, since a module
+        # without the register carries no ``bit8`` object. Gating on a metadata
+        # field instead cost this integration every CO2 sensor in the reference
+        # installation once already -- see AmpioCO2SensorConfig.
+        for index, item in self.names.get(ItemTypes.AnalogFlag8, {}).items():
+            analog_flag_data = AmpioAnalogFlag8Config.from_ampio_device(self, item, index)
+            if analog_flag_data and analog_flag_data.unique_id:
+                self.configs["number"].append(analog_flag_data.config)
+                self.unique_ids.add(analog_flag_data.unique_id)
 
     @property
     def part_number(self) -> str | int:
@@ -1499,7 +1552,6 @@ class MKINMULTIModuleInfo(AmpioModuleInfo):
     switching bedroom wall lights.
     """
 
-
     def update_configs(self) -> None:
         """Update module specific configuration with auto-detection."""
         super().update_configs()
@@ -1962,24 +2014,38 @@ class AmpioUVIndexSensorConfig(AmpioConfig):
         return cls(config=config)
 
 
-class AmpioAnalogFlag8SensorConfig(AmpioConfig):
-    """Ampio 8-bit Flag (afu8) Entity Configuration."""
+class AmpioAnalogFlag8Config(AmpioConfig):
+    """Ampio 8-bit Analog Flag (afu8) Entity Configuration.
+
+    Read on ``state/afu8/<nr>``, written as a raw CAN broadcast -- see
+    ``analog_flag_raw_payload``. That is why this config carries no
+    ``command_topic``: the raw topic is not per-item.
+    """
 
     @classmethod
     def from_ampio_device(
         cls, ampio_device: AmpioModuleInfo, item: ItemName, index: int = 1
-    ) -> AmpioAnalogFlag8SensorConfig:
+    ) -> AmpioAnalogFlag8Config:
         """Create config from ampio device.
 
-        8-bit flag values (0-255) from state/afu8/<nr>.
+        8-bit flag values (0-255) from state/afu8/<nr>. The project's own
+        ``min``/``max`` win when it filled them in with a usable sub-range;
+        anything else falls back to the register's full 0-255.
         """
         mac = ampio_device.user_mac
         name = item.name if item.name else f"Flag 8-bit {index} {ampio_device.name}"
+        low, high = item.value_min, item.value_max
+        if low is None or high is None or not ANALOG_FLAG_MIN <= low < high <= ANALOG_FLAG_MAX:
+            low, high = ANALOG_FLAG_MIN, ANALOG_FLAG_MAX
         config = {
             CONF_UNIQUE_ID: f"ampio-{mac}-afu8-{index}",
             CONF_NAME: f"ampio-{mac}-afu8-{index}",
             CONF_FRIENDLY_NAME: name,
             CONF_STATE_TOPIC: f"ampio/from/{mac}/state/afu8/{index}",
+            CONF_RAW_TOPIC: f"ampio/to/{mac}/raw",
+            CONF_MIN_VALUE: low,
+            CONF_MAX_VALUE: high,
+            CONF_ICON: "mdi:flag-outline",
             CONF_DEVICE: ampio_device.as_hass_device(),
         }
         return cls(config=config)

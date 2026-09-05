@@ -120,8 +120,7 @@ class AmpioCoordinator(DataUpdateCoordinator[AmpioData]):
         """Map each project response topic to the table it carries."""
         user = self._project_user
         return {
-            TOPIC_PROJECT_RESPONSE.format(user=user, table=table): table
-            for table in PROJECT_TABLES
+            TOPIC_PROJECT_RESPONSE.format(user=user, table=table): table for table in PROJECT_TABLES
         }
 
     @property

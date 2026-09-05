@@ -10,6 +10,7 @@ from homeassistant.components.climate import DOMAIN as CLIMATE
 from homeassistant.components.cover import DOMAIN as COVER
 from homeassistant.components.event import DOMAIN as EVENT
 from homeassistant.components.light import DOMAIN as LIGHT
+from homeassistant.components.number import DOMAIN as NUMBER
 from homeassistant.components.sensor import DOMAIN as SENSOR
 from homeassistant.components.switch import DOMAIN as SWITCH
 
@@ -22,6 +23,7 @@ COMPONENTS: Final = (
     COVER,
     EVENT,
     LIGHT,
+    NUMBER,
     SENSOR,
     SWITCH,
 )
@@ -99,6 +101,8 @@ CONF_EXITTIME10_TOPIC: Final = "exittime10_topic"
 CONF_EXITTIME_TOPIC: Final = "exittime_topic"
 CONF_AWAY_ZONES: Final = "away_zones"
 CONF_HOME_ZONES: Final = "home_zones"
+CONF_MIN_VALUE: Final = "min_value"
+CONF_MAX_VALUE: Final = "max_value"
 
 # Attributes
 ATTR_VERSION: Final = "version"
@@ -146,6 +150,20 @@ ALARM_CMD_CLEAR: Final = "1E0085"
 # Light commands
 LIGHT_CMD_OFF: Final = 0
 LIGHT_RGB_OFF: Final = "off"
+
+# Analog flag (afu8) commands.
+#
+# An 8-bit flag is NOT written the way a binary flag is. There is no
+# ``ampio/to/<mac>/afu8/<n>/cmd`` topic: the value goes out as a raw CAN
+# broadcast on ``ampio/to/<mac>/raw``, prefixed with this command id, then the
+# value byte, then the 0-based flag index. Ampio's own Node-RED node builds
+# exactly that frame (see ``node-red-contrib-ampio``, ``ampioin/out.js``, the
+# ``valtype == 'afu8'`` branch), while every other writable type there falls
+# through to the ``/cmd`` form.
+ANALOG_FLAG_RAW_CMD: Final = b"\x7a\xf9"
+ANALOG_FLAG_MIN: Final = 0
+ANALOG_FLAG_MAX: Final = 255
+ANALOG_FLAG_STEP: Final = 1
 
 # Zone bitmask constants
 ZONE_BITMASK: Final = 0xFFFFFFFF

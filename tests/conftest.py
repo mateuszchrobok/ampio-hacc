@@ -127,6 +127,16 @@ _sensor_mock.SensorDeviceClass = MagicMock()
 _sensor_mock.SensorStateClass = MagicMock()
 _components_mock.sensor = _sensor_mock
 
+# Number component
+_number_mock = MagicMock()
+_number_mock.DOMAIN = "number"
+_number_mock.NumberEntity = MagicMock()
+_number_mock.NumberEntityDescription = MagicMock()
+_number_mock.NumberMode = MagicMock()
+_number_mock.NumberMode.BOX = "box"
+_number_mock.NumberMode.SLIDER = "slider"
+_components_mock.number = _number_mock
+
 # Switch component
 _switch_mock = MagicMock()
 _switch_mock.DOMAIN = "switch"
@@ -196,6 +206,7 @@ sys.modules["homeassistant.components.alarm_control_panel"] = _alarm_mock
 sys.modules["homeassistant.components.binary_sensor"] = _binary_sensor_mock
 sys.modules["homeassistant.components.cover"] = _cover_mock
 sys.modules["homeassistant.components.light"] = _light_mock
+sys.modules["homeassistant.components.number"] = _number_mock
 sys.modules["homeassistant.components.sensor"] = _sensor_mock
 sys.modules["homeassistant.components.switch"] = _switch_mock
 sys.modules["homeassistant.components.climate"] = _climate_mock
