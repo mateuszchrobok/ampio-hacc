@@ -62,6 +62,14 @@ COMPONENT_TYPES: dict[str, str] = {
     # An 8-bit flag: one byte of state, read on ``state/afu8/<n>``. The project
     # calls it ``bit8``; the wire calls it ``afu8``.
     "bit8": ItemTypes.AnalogFlag8.value,
+    # The same wire type under a second project name. ``flaga_liniowa`` is what
+    # Ampio Designer writes for an 8-bit flag placed on a module that is not a
+    # bare I/O board, and on this installation it is the name that matters: the
+    # ``bit8`` rows here sit on two M-CON modules that publish no ``afu8`` at
+    # all, while every live ``afu8`` topic belongs to a ``flaga_liniowa`` row.
+    # Mapping only ``bit8`` therefore produces entities that are permanently
+    # ``unknown`` and misses every flag that carries a value.
+    "flaga_liniowa": ItemTypes.AnalogFlag8.value,
     # A zone of a Satel alarm panel behind an M-CON bridge, read on
     # ``state/bi/<n>``. This is by far the most numerous row type in a project
     # and almost all of it is unused allocation -- see PLACEHOLDER_NAMES.
@@ -117,7 +125,6 @@ IGNORED_COMPONENT_TYPES = frozenset(
         "custom",
         "event",
         "bit16",
-        "flaga_liniowa",
         "tekst_can",
         "kamera_rtsp",
         "stacja_elsner",
