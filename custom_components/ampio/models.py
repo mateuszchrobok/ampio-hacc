@@ -293,6 +293,11 @@ class ItemTypes(str, Enum):
     BinaryFlag = "f"
     BinaryInput = "i"
     BinaryOutput = "o"
+    # A zone of a Satel alarm panel, seen through an M-CON bridge. It gets its own
+    # topic segment rather than sharing ``i``: on the same module ``state/i/<n>``
+    # is the M-CON's own input and ``state/bi/<n>`` is the panel's zone, so one
+    # index means two different signals depending on the segment.
+    SatelInput = "bi"
     AnalogInput = "a"
     AnalogOutput = "au"
     # Extended analog types
@@ -559,13 +564,32 @@ class MSENSModuleInfo(AmpioModuleInfo):
 
 
 class MCONModuleInfo(AmpioModuleInfo):
-    """MCON Ampio module information."""
+    """MCON Ampio module information.
+
+    The M-CON is a generic integration bridge; the firmware decides what it talks
+    to. ``software % 100 == 1`` is the INTEGRA build, i.e. the one wired to a Satel
+    alarm panel, and only that build publishes ``state/bi/<n>`` zone states. The
+    reference installation has five type-25 modules and the check separates them
+    cleanly: soft 3001 on the two Satel bridges, soft 7007 on the three serial
+    masters (Nibe RTU, Haier RS-485, Elsner).
+    """
 
     def update_configs(self) -> None:
         """Update config."""
         super().update_configs()
         if self.software % 100 == 1:  # INTEGRA
-            for index, item in self.names.get(ItemTypes.BinaryInput, {}).items():
+            # Zone names reach us by two routes and both end up on
+            # ``state/bi/<n>``. ``bi`` is a ``satel_wej`` row read from the
+            # project database, which is the only route that works on bridge 5.x.
+            # ``i`` is what the legacy per-module description handshake used;
+            # that handshake is dead everywhere it has been tried, but the
+            # mapping predates this integration's fork and is left in place. The
+            # project database wins an index collision, being the live source.
+            zones: dict[int, ItemName] = {
+                **self.names.get(ItemTypes.BinaryInput, {}),
+                **self.names.get(ItemTypes.SatelInput, {}),
+            }
+            for index, item in sorted(zones.items()):
                 binary_data = AmpioBinarySensorExtendedConfig.from_ampio_device(self, item, index)
                 if binary_data and binary_data.unique_id:
                     self.configs["binary_sensor"].append(binary_data.config)

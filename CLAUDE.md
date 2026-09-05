@@ -98,7 +98,7 @@ All device/entity type mappings are in `models.py`. When adding support for new 
 
 ## Supported Platforms
 - `sensor` - Environmental data (temperature, humidity, IAQ, CO2, pressure)
-- `binary_sensor` - Binary inputs
+- `binary_sensor` - Binary inputs, and Satel alarm zones (`bi`) behind an M-CON
 - `switch` - Binary outputs (relays)
 - `number` - 8-bit analog flags (`afu8`), writable 0-255
 - `light` - Dimmers (MDIM-8s), LED (MLED-1), RGBW (MRGBu-1)
@@ -115,6 +115,20 @@ writable type there falls through to the `/cmd` form. The encoder is
 output for all 65536 (value, index) pairs — but **never yet confirmed against
 hardware**, and no `ampio/to` command of any kind has been captured on the
 reference installation.
+
+**A project row is not evidence that anything exists.** Ampio Designer
+pre-allocates blocks of `objects` rows and leaves them nameless; `satel_wej` is
+the extreme case, at 2403 rows on the reference installation against ~48 live
+`bi` topics, 2062 of them on an M-CON that bridges a heat pump and has no alarm
+panel. `PLACEHOLDER_NAMES` in `project_db.py` is therefore a correctness filter,
+not a cosmetic one — it is what turns those 2403 rows into 15 entities. The
+second guard is firmware: only `soft_ver % 100 == 1` (INTEGRA) M-CONs publish
+`state/bi/<n>` at all, which is what `MCONModuleInfo` checks.
+
+**A Satel zone has no device class.** Nothing on the wire or in the project says
+whether zone *n* is a PIR, a door reed or a tamper loop. Names like "PIR Salon"
+are one installer's convention. The `M:`/`D:`/`W:` name-prefix mechanism is the
+only declaration the integration honours.
 
 ## MQTT Topic Structure
 

@@ -5,6 +5,7 @@ import base64
 import pytest
 
 from custom_components.ampio.models import (
+    CLASS_FACTORY,
     DEVICE_CLASSES,
     TYPE_CODES,
     AmpioAnalogFlag8Config,
@@ -346,3 +347,130 @@ class TestUpdateConfigsAnalogFlag:
         assert module.get_config_for_component("number")[0]["unique_id"] == "ampio-85DA-afu8-1"
         assert module.get_config_for_component("switch")[0]["unique_id"] == "ampio-85DA-f1"
         assert len(module.unique_ids) == 2
+
+
+def _mcon(software: int, **names) -> AmpioModuleInfo:
+    """Build an M-CON (type 25) carrying the given names map.
+
+    ``software`` decides everything: ``% 100 == 1`` is the INTEGRA build that
+    bridges a Satel panel, anything else is an M-CON doing an unrelated job.
+    """
+    module = CLASS_FACTORY[25](
+        mac="7fa9",
+        user_mac="7fa9",
+        code=25,
+        pcb=1,
+        software=software,
+        protocol=22,
+        date_prod="20230101",
+        i=0,
+        o=0,
+        a=0,
+        au=0,
+        t=0,
+        flags=0,
+        name=base64encode("A170: Satel"),
+    )
+    module.names = names
+    return module
+
+
+class TestSatelZoneDiscovery:
+    """Tests that an M-CON's Satel zones become binary sensors."""
+
+    def test_satel_input_is_its_own_topic_type(self):
+        """Test the item type is the topic segment, not a variant of i."""
+        assert ItemTypes.SatelInput.value == "bi"
+        assert ItemTypes.BinaryInput.value == "i"
+
+    def test_integra_zones_become_binary_sensors(self):
+        """Test each named zone yields one binary sensor on state/bi/<n>."""
+        module = _mcon(
+            3001,
+            **{
+                ItemTypes.SatelInput: {
+                    1: ItemName(base64encode("PIR Wejście")),
+                    20: ItemName(base64encode("kDrzwiLazParter")),
+                }
+            },
+        )
+        module.update_configs()
+
+        sensors = module.get_config_for_component("binary_sensor")
+        assert [c["unique_id"] for c in sensors] == ["ampio-7FA9-bi1", "ampio-7FA9-bi20"]
+        assert [c["state_topic"] for c in sensors] == [
+            "ampio/from/7FA9/state/bi/1",
+            "ampio/from/7FA9/state/bi/20",
+        ]
+        assert [c["friendly_name"] for c in sensors] == ["PIR Wejście", "kDrzwiLazParter"]
+
+    def test_zone_names_carry_no_device_class_by_default(self):
+        """Test a plain project name yields a generic on/off sensor.
+
+        Nothing on the wire says whether a zone is a motion detector, a door reed
+        or a tamper loop, and the project's own name is free text -- "PIR Salon"
+        is a convention of one installer, not a protocol. The prefix mechanism
+        (``M:PIR Salon``) stays the only way to declare one.
+        """
+        module = _mcon(3001, **{ItemTypes.SatelInput: {6: ItemName(base64encode("PIR Salon"))}})
+        module.update_configs()
+
+        assert "device_class" not in module.get_config_for_component("binary_sensor")[0]
+
+    def test_device_class_prefix_is_still_honoured(self):
+        """Test an installer who does declare a class gets it."""
+        module = _mcon(3001, **{ItemTypes.SatelInput: {6: ItemName(base64encode("M:PIR Salon"))}})
+        module.update_configs()
+
+        config = module.get_config_for_component("binary_sensor")[0]
+        assert config["device_class"] == "motion"
+        assert config["friendly_name"] == "PIR Salon"
+
+    def test_non_integra_mcon_gets_no_zones(self):
+        """Test zone rows on a serial-master M-CON create nothing.
+
+        A project allocates ``satel_wej`` rows on every M-CON, including the ones
+        wired to a heat pump or an air conditioner. Those modules never publish
+        ``state/bi/<n>``, so an entity there would sit at ``unknown`` forever.
+        """
+        module = _mcon(7007, **{ItemTypes.SatelInput: {1: ItemName(base64encode("PIR Wejście"))}})
+        module.update_configs()
+
+        assert module.get_config_for_component("binary_sensor") == []
+        assert module.get_config_for_component("alarm_control_panel") == []
+
+    def test_no_zones_means_no_binary_sensors(self):
+        """Test an INTEGRA bridge with no named zones still gains nothing."""
+        module = _mcon(3001)
+        module.update_configs()
+
+        assert module.get_config_for_component("binary_sensor") == []
+        assert len(module.get_config_for_component("alarm_control_panel")) == 1
+
+    def test_project_zone_wins_over_a_legacy_handshake_name(self):
+        """Test one index yields one entity when both name sources have it.
+
+        Both routes end on ``state/bi/<n>`` and share a unique id. The project
+        database is the live source; the description handshake is dead.
+        """
+        module = _mcon(
+            3001,
+            **{
+                ItemTypes.BinaryInput: {1: ItemName(base64encode("Stara nazwa"))},
+                ItemTypes.SatelInput: {1: ItemName(base64encode("PIR Wejście"))},
+            },
+        )
+        module.update_configs()
+
+        sensors = module.get_config_for_component("binary_sensor")
+        assert len(sensors) == 1
+        assert sensors[0]["friendly_name"] == "PIR Wejście"
+
+    def test_legacy_handshake_names_alone_still_work(self):
+        """Test the pre-existing i-to-bi mapping is untouched."""
+        module = _mcon(3001, **{ItemTypes.BinaryInput: {4: ItemName(base64encode("Strefa 4"))}})
+        module.update_configs()
+
+        sensors = module.get_config_for_component("binary_sensor")
+        assert len(sensors) == 1
+        assert sensors[0]["state_topic"] == "ampio/from/7FA9/state/bi/4"
