@@ -254,13 +254,39 @@ Server module with flags and I/O.
 
 #### M-CON (Code 25)
 
-Integration module supporting Satel alarm systems.
+Generic integration bridge. The firmware decides what it talks to, and only the
+INTEGRA build — `soft_ver % 100 == 1` — bridges a Satel alarm panel. Every other
+M-CON in a project is a serial master for something else (Modbus RTU, RS-485,
+weather station) and publishes no Satel topics at all, so no Satel entities are
+created for it even when the project allocates Satel rows on it.
 
-**Binary sensors** (Satel zones):
+**Binary sensors** (Satel zones, INTEGRA firmware only):
 
 | Entity ID Pattern | Platform | Topic |
 |-------------------|----------|-------|
 | `binary_sensor.ampio_{mac}_bi{n}` | binary_sensor | `state/bi/{n}` |
+
+Zone names come from the project database's `satel_wej` rows. Ampio Designer
+pre-allocates those rows in bulk and leaves them nameless, so **only named rows
+become entities** — see [Satel zone entity count](#satel-zone-entity-count).
+
+Zones get **no device class** by default: nothing in the protocol or the project
+says whether a zone is a motion detector, a door reed or a tamper loop. To declare
+one, prefix the object's name in Ampio Designer, e.g. `M:PIR Salon` for motion or
+`D:Drzwi garaż` for a door — the same prefix mechanism every other item type uses.
+
+To work out which a zone is, watch its **pulse shape** rather than its level:
+
+```
+mosquitto_sub -h <ampio-server> -t 'ampio/from/<mac>/state/bi/+' -v
+```
+
+A motion detector pulses repeatedly for a few seconds at a time while someone is in
+the room; over one 20-minute window on the reference installation the PIR zones
+produced 49 high runs of 3–42 s (median 8 s). A door or gate contact makes one long
+transition per physical movement — 25 s, 53 s and 121 s there — and may idle high
+when closed rather than low. Zones matching neither shape exist: one unnamed zone
+there went high once for 336 s.
 
 **Alarm control panel:**
 
@@ -276,6 +302,28 @@ Integration module supporting Satel alarm systems.
 | `H:` | Home only |
 | `B:` | Both (Away + Home) |
 | (none) | Away only |
+
+Satel **outputs** (`satel_wyj`, `state/bo/{n}`) and per-zone **alarm state**
+(`satel_alarm`) are not exposed. The alarm panel entity already carries arm and
+alarm state; what the output index means is not established.
+
+##### Satel zone entity count
+
+`satel_wej` is normally the largest row type in an Ampio project by an order of
+magnitude, and nearly all of it is unused allocation. On the reference
+installation the objects table holds **2403** `satel_wej` rows and this
+integration creates **15** binary sensors from them. Three filters do that, all
+of them pre-existing and shared with every other item type:
+
+| Filter | Effect on the reference project |
+|--------|--------------------------------|
+| Name must not be blank or a placeholder | 2403 → 19 |
+| `funkcja` (index) must be ≥ 1 | 19 → 18 |
+| First row to claim an index wins | 18 → 15 |
+| Module firmware must be INTEGRA | all 15 already sit on the one Satel bridge |
+
+If a change to this integration ever makes a project produce hundreds of `bi`
+sensors that sit at `unknown`, one of these filters was weakened.
 
 ---
 

@@ -20,6 +20,11 @@ enough to rebuild ``names``:
     is the 1-based index used in the state topic, ``typ_komponentu`` is the project's
     own component type, ``opis_menu`` is the human name and ``min``/``max`` bound the
     value where the project bothered to bound it.
+
+A row is not evidence that anything exists. Ampio Designer pre-allocates whole
+blocks of rows -- ``satel_wej`` most of all -- and leaves them nameless. The name is
+the only signal that a human configured the item, which is why ``PLACEHOLDER_NAMES``
+is a correctness filter here and not a cosmetic one.
 """
 
 from __future__ import annotations
@@ -57,6 +62,10 @@ COMPONENT_TYPES: dict[str, str] = {
     # An 8-bit flag: one byte of state, read on ``state/afu8/<n>``. The project
     # calls it ``bit8``; the wire calls it ``afu8``.
     "bit8": ItemTypes.AnalogFlag8.value,
+    # A zone of a Satel alarm panel behind an M-CON bridge, read on
+    # ``state/bi/<n>``. This is by far the most numerous row type in a project
+    # and almost all of it is unused allocation -- see PLACEHOLDER_NAMES.
+    "satel_wej": ItemTypes.SatelInput.value,
 }
 
 # MLED-1 and MLED-s drive their channels over ``au/<n>``; every other module that
@@ -72,11 +81,23 @@ FIXED_TEMPERATURE_CODES = frozenset({34, 44, 45})
 
 # Rows whose name is one of these are unconfigured placeholders in the project
 # ("ND" = nie dotyczy). They would otherwise become entities with no meaning.
+#
+# This is load-bearing for ``satel_wej``. Ampio Designer allocates a full block of
+# Satel zone rows per M-CON whether or not a panel is attached, so the row count is
+# not a count of anything real: the reference installation carries 2403 of them
+# across four M-CONs, and 2384 have an empty ``opis_menu``. 2062 of those sit on a
+# module that bridges a heat pump over RS-485 and has no alarm panel at all.
+# Combined with the ``funkcja >= 1`` and duplicate-index checks below, 2403 rows
+# become 15 items. Anything that weakens this filter re-arms that number.
 PLACEHOLDER_NAMES = frozenset({"", "ND", "N/D", "-"})
 
 # Component types deliberately not turned into entities:
-#   satel_*      the Satel alarm is already exposed as an alarm_control_panel, and
-#                these rows alone number in the thousands
+#   satel_wyj    a Satel panel output, on ``state/bo/<n>``. Live, but what the
+#                index means is not established: the reference project names
+#                outputs 1, 2, 3 and 20 while 1, 2, 3 and *4* read high, so the
+#                obvious index mapping is already contradicted by the wire.
+#   satel_alarm  per-zone arm/alarm state. Already carried by the
+#                alarm_control_panel entity's armed/alarm/entrytime topics.
 #   lin_wej      MSENS channels, built from fixed topics by MSENSModuleInfo
 #   rgbw         built from fixed topics by MRGBu1ModuleInfo
 #   bit16        the 16-bit flag. Its state topic (``afi16``) is live, but no
@@ -89,7 +110,6 @@ PLACEHOLDER_NAMES = frozenset({"", "ND", "N/D", "-"})
 #                project-side constructs with no Ampio state topic of their own
 IGNORED_COMPONENT_TYPES = frozenset(
     {
-        "satel_wej",
         "satel_wyj",
         "satel_alarm",
         "lin_wej",

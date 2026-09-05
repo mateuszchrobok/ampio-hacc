@@ -126,8 +126,16 @@ Name format: `PREFIX:Name` where PREFIX defines device class:
 Topic: ampio/from/{mac}/state/i/{index}   (binary input)
 Topic: ampio/from/{mac}/state/o/{index}   (binary output)
 Topic: ampio/from/{mac}/state/f/{index}   (flag)
+Topic: ampio/from/{mac}/state/bi/{index}  (Satel zone, M-CON with INTEGRA firmware)
+Topic: ampio/from/{mac}/state/bo/{index}  (Satel output, M-CON with INTEGRA firmware)
 Payload: "0" or "1"
 ```
+
+`bi` is not a variant of `i`. On one M-CON, `state/i/{n}` is the module's own
+input and `state/bi/{n}` is zone `n` of the alarm panel behind it — two different
+signals sharing an index. The project database calls a zone `satel_wej`; only a
+*named* `satel_wej` row corresponds to a zone anybody configured, because Ampio
+Designer allocates the rows in bulk.
 
 ### Temperature
 
