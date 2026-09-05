@@ -1552,7 +1552,6 @@ class MKINMULTIModuleInfo(AmpioModuleInfo):
     switching bedroom wall lights.
     """
 
-
     def update_configs(self) -> None:
         """Update module specific configuration with auto-detection."""
         super().update_configs()

@@ -171,9 +171,7 @@ def parse_objects(
     reuse index 1 of a device that already has a physical item there. Those are
     added to the project later, so they carry higher ids and lose the tie.
     """
-    names: dict[str, dict[str, dict[int, ItemName]]] = defaultdict(
-        lambda: defaultdict(dict)
-    )
+    names: dict[str, dict[str, dict[int, ItemName]]] = defaultdict(lambda: defaultdict(dict))
     skipped: Counter[str] = Counter()
 
     def sort_key(row: dict[str, Any]) -> int:
@@ -208,11 +206,7 @@ def parse_objects(
             skipped["bad index"] += 1
             continue
 
-        if (
-            component == "temp"
-            and index == 1
-            and device.code in FIXED_TEMPERATURE_CODES
-        ):
+        if component == "temp" and index == 1 and device.code in FIXED_TEMPERATURE_CODES:
             skipped["fixed temperature sensor"] += 1
             continue
 
